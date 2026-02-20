@@ -1,0 +1,48 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+client/node_modules
+client/.next
+node_modules
+=======
+.idea
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+client/.next/*
+
+# testing
+/coverage
+
+client/.env.local
+server/.env
+
+###> symfony/framework-bundle ###
+server/config/secrets/prod/prod.decrypt.private.php
+server/public/bundles/
+server/var/
+server/vendor/
+###< symfony/framework-bundle ###
+
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+client/next-env.d.ts
+
+.idea/*
