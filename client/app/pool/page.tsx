@@ -297,6 +297,7 @@ export default function PoolPage() {
     let extraTurns = 0;
     let durationMs = 0;
     let spinProof = "";
+    let spinPayloadDebug: Partial<SpinResponse> | null = null;
 
     try {
       const spinResponse = await fetch("/api/pool/spin", {
@@ -310,6 +311,7 @@ export default function PoolPage() {
         }),
       });
       const spinPayload = (await spinResponse.json().catch(() => ({}))) as SpinResponse;
+      spinPayloadDebug = spinPayload;
 
       if (!spinResponse.ok || !spinPayload.ok) {
         setIsSpinning(false);
@@ -331,16 +333,31 @@ export default function PoolPage() {
       return;
     }
 
-    if (
-      !winner ||
-      !Number.isFinite(targetAngle) ||
-      !Number.isFinite(extraTurns) ||
-      !Number.isFinite(durationMs) ||
-      !spinProof
-    ) {
+    if (!winner) {
       setIsSpinning(false);
-      setNotice("Spin result became stale. Refresh and try again.");
-      window.setTimeout(() => setNotice(null), 4000);
+      setNotice("Spin winner could not be resolved. Refresh and try again.");
+      window.setTimeout(() => setNotice(null), 5000);
+      return;
+    }
+
+    if (!Number.isFinite(targetAngle) || !Number.isFinite(extraTurns) || !Number.isFinite(durationMs)) {
+      setIsSpinning(false);
+      setNotice("Spin service returned invalid wheel values. Try again in a moment.");
+      window.setTimeout(() => setNotice(null), 5000);
+      return;
+    }
+
+    if (!spinProof) {
+      setIsSpinning(false);
+      setNotice("Spin service is missing secure proof. Ask admin to redeploy spin server with SPIN_PROOF_SECRET.");
+      console.error("[pool] Missing spinProof from /api/pool/spin response", {
+        winnerItemId: spinPayloadDebug?.winnerItemId,
+        winnerIndex: spinPayloadDebug?.winnerIndex,
+        targetAngle: spinPayloadDebug?.targetAngle,
+        extraTurns: spinPayloadDebug?.extraTurns,
+        durationMs: spinPayloadDebug?.durationMs,
+      });
+      window.setTimeout(() => setNotice(null), 6500);
       return;
     }
 

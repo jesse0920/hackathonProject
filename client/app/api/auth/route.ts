@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { getOnboardedState, ONBOARDED_COOKIE } from "@/lib/onboarding";
 import { createClient } from "@/lib/supabase/server";
 
@@ -6,6 +7,7 @@ type AuthMode = "login" | "register";
 
 type AuthRequestBody = {
   mode?: AuthMode;
+  identifier?: string;
   email?: string;
   password?: string;
   name?: string;
@@ -17,6 +19,56 @@ function normalizeDisplayName(input: string) {
   const withoutAt = base.replace(/@/g, " ");
   const safe = withoutAt.replace(/[^a-zA-Z0-9 _.-]/g, "").trim();
   return safe;
+}
+
+function isEmailLike(value: string) {
+  return value.includes("@");
+}
+
+async function resolveLoginEmail(identifier: string, supabase: Awaited<ReturnType<typeof createClient>>) {
+  if (isEmailLike(identifier)) {
+    return identifier;
+  }
+
+  const normalizedName = normalizeDisplayName(identifier);
+  if (!normalizedName || normalizedName.length < 3) {
+    return null;
+  }
+
+  const { data: profileRows, error: profileError } = await supabase
+    .from("profiles")
+    .select("id, name")
+    .eq("name", normalizedName)
+    .limit(1);
+
+  if (profileError) {
+    console.error("[auth] profile lookup failed on username login", profileError);
+    return null;
+  }
+
+  const profile = profileRows?.[0];
+  const userId = profile?.id;
+  if (!userId) {
+    return null;
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.error("[auth] SUPABASE_SERVICE_ROLE_KEY missing; username login unavailable.");
+    return null;
+  }
+
+  const admin = createAdminClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const { data: userLookup, error: userLookupError } = await admin.auth.admin.getUserById(userId);
+  if (userLookupError) {
+    console.error("[auth] admin user lookup failed on username login", userLookupError);
+    return null;
+  }
+
+  return userLookup.user?.email ?? null;
 }
 
 export async function POST(req: Request) {
@@ -38,7 +90,7 @@ export async function POST(req: Request) {
     // ignore logging errors
   }
 
-  if (!body?.mode || !body.email || !body.password) {
+  if (!body?.mode || !body.password) {
     return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
   }
 
@@ -63,8 +115,18 @@ export async function POST(req: Request) {
   }
 
   if (body.mode === "login") {
+    const rawIdentifier = (body.identifier ?? body.email ?? body.username ?? "").trim();
+    if (!rawIdentifier) {
+      return NextResponse.json({ error: "Enter your username or email." }, { status: 400 });
+    }
+
+    const resolvedEmail = await resolveLoginEmail(rawIdentifier, supabase);
+    if (!resolvedEmail) {
+      return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: body.email,
+      email: resolvedEmail,
       password: body.password,
     });
 
@@ -134,6 +196,10 @@ export async function POST(req: Request) {
   }
 
   const name = normalizedName;
+  if (!body.email) {
+    return NextResponse.json({ error: "Email is required for registration." }, { status: 400 });
+  }
+
   const { data, error } = await supabase.auth.signUp({
     email: body.email,
     password: body.password,

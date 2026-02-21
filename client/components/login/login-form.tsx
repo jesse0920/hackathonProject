@@ -16,6 +16,7 @@ export default function LoginForm({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<Mode>(initial);
+  const [identifier, setIdentifier] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,7 +32,12 @@ export default function LoginForm({
     const submittedMode = (formData.get("authMode") as Mode) || mode;
     setMode(submittedMode);
 
-    if (!email || !password) {
+    if (submittedMode === "login" && (!identifier.trim() || !password)) {
+      setMessage("Please fill username or email, and password.");
+      return;
+    }
+
+    if (submittedMode === "register" && (!email || !password)) {
       setMessage("Please fill email and password.");
       return;
     }
@@ -55,9 +61,10 @@ export default function LoginForm({
         },
         body: JSON.stringify({
           mode: submittedMode,
-          email,
+          identifier: submittedMode === "login" ? identifier.trim() : undefined,
+          email: submittedMode === "register" ? email : undefined,
           password,
-          username: username.trim(),
+          username: submittedMode === "register" ? username.trim() : undefined,
         }),
       });
 
@@ -87,29 +94,45 @@ export default function LoginForm({
       <div className={styles.sub}>Choose a mode, then continue.</div>
 
       <form onSubmit={handleSubmit}>
-        <div className={styles.field}>
-          <label className={styles.label}>Username</label>
-          <input
-            className={styles.input}
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="Your display name"
-            required={mode === "register"}
-          />
-        </div>
+        {mode === "login" ? (
+          <div className={styles.field}>
+            <label className={styles.label}>Username or Email</label>
+            <input
+              className={styles.input}
+              type="text"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              required
+              placeholder="your username or your.email@example.com"
+            />
+          </div>
+        ) : (
+          <>
+            <div className={styles.field}>
+              <label className={styles.label}>Username</label>
+              <input
+                className={styles.input}
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Your display name"
+                required
+              />
+            </div>
 
-        <div className={styles.field}>
-          <label className={styles.label}>Email</label>
-          <input
-            className={styles.input}
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            placeholder="your.email@example.com"
-          />
-        </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Email</label>
+              <input
+                className={styles.input}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="your.email@example.com"
+              />
+            </div>
+          </>
+        )}
 
         <div className={styles.field}>
           <label className={styles.label}>Password</label>
