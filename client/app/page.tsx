@@ -11,13 +11,13 @@ export default function Home() {
       <VegasHeader />
 
       <section
-        className="relative flex h-[500px] items-center justify-center bg-cover bg-center"
+        className="relative flex h-125 items-center justify-center bg-cover bg-center"
         style={{
           backgroundImage:
             "url(https://images.unsplash.com/photo-1491252706929-a72754910041?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080)",
         }}
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black" />
+        <div className="absolute inset-0 bg-linear-to-b from-black/70 via-black/50 to-black" />
         <div className="relative z-10 px-4 text-center">
           <h1 className="mb-4 text-5xl font-bold text-white md:text-6xl">
             Welcome to <span className="text-yellow-400">Vegas Swap</span>
@@ -37,13 +37,13 @@ export default function Home() {
               href="/pool"
               className="rounded-lg bg-red-700 px-8 py-3 font-semibold text-white transition-colors hover:bg-red-600"
             >
-              🎲 Start Gambling
+              Start Gambling
             </Link>
           </div>
         </div>
       </section>
 
-      <section className="bg-gradient-to-b from-black to-gray-900 px-4 py-16">
+      <section className="bg-linear-to-b from-black to-gray-900 px-4 py-16">
         <div className="mx-auto max-w-6xl">
           <h2 className="mb-12 text-center text-4xl font-bold text-white">How It Works</h2>
           <div className="grid gap-8 md:grid-cols-3">

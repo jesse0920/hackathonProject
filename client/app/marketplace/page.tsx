@@ -34,9 +34,6 @@ export default function MarketplacePage() {
 
         <div className="mb-8 space-y-4">
           <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-              🔎
-            </span>
             <input
               type="text"
               placeholder="Search items..."

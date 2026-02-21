@@ -89,14 +89,14 @@ export default function PoolPage() {
 
       <main className="mx-auto max-w-6xl px-4 py-8">
         <div className="mb-8 text-center">
-          <h1 className="mb-2 text-4xl font-bold text-white">🎲 Gamble Zone</h1>
+          <h1 className="mb-2 text-4xl font-bold text-white">Gamble Zone</h1>
           <p className="text-gray-400">
             Select 2-6 items to enter the pool, then spin the wheel to see who wins it all.
           </p>
         </div>
 
         {selectedItems.length > 0 ? (
-          <section className="mb-8 rounded-lg border-2 border-red-900 bg-gradient-to-b from-gray-900 to-gray-800 p-8">
+          <section className="mb-8 rounded-lg border-2 border-red-900 bg-linear-to-b from-gray-900 to-gray-800 p-8">
             <RouletteWheel items={selectedItems} isSpinning={isSpinning} spinAngle={spinAngle} />
 
             <div className="mt-8 text-center">
@@ -113,7 +113,7 @@ export default function PoolPage() {
                   disabled={selectedItems.length < 2 || isSpinning}
                   className="rounded-lg bg-yellow-400 px-8 py-3 font-semibold text-black transition-colors hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isSpinning ? "⟳ Spinning..." : "🎲 Spin The Wheel"}
+                  {isSpinning ? "⟳ Spinning..." : "Spin The Wheel"}
                 </button>
 
                 {!isSpinning ? (
@@ -129,9 +129,8 @@ export default function PoolPage() {
             </div>
 
             {showResult && result ? (
-              <div className="mt-8 rounded-lg border-2 border-yellow-400 bg-gradient-to-r from-yellow-900/50 to-red-900/50 p-6">
+              <div className="mt-8 rounded-lg border-2 border-yellow-400 bg-linear-to-r from-yellow-900/50 to-red-900/50 p-6">
                 <div className="text-center">
-                  <div className="mb-3 text-5xl">🏆</div>
                   <h2 className="mb-2 text-3xl font-bold text-white">Winner!</h2>
                   <p className="mb-4 text-xl text-yellow-400">{result.ownerName} wins all items!</p>
                   <div className="mx-auto max-w-sm">

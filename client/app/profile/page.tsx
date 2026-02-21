@@ -24,19 +24,19 @@ export default function ProfilePage() {
 
           <div className="mt-8 grid gap-4 md:grid-cols-4">
             <div className="rounded-lg border border-gray-700 bg-black/50 p-4">
-              <p className="mb-2 text-sm text-gray-400">📦 Items Owned</p>
+              <p className="mb-2 text-sm text-gray-400">Items Owned</p>
               <p className="text-3xl font-bold text-white">{currentUser.items.length}</p>
             </div>
             <div className="rounded-lg border border-gray-700 bg-black/50 p-4">
-              <p className="mb-2 text-sm text-gray-400">🏆 Total Wins</p>
+              <p className="mb-2 text-sm text-gray-400">Total Wins</p>
               <p className="text-3xl font-bold text-white">{currentUser.wins}</p>
             </div>
             <div className="rounded-lg border border-gray-700 bg-black/50 p-4">
-              <p className="mb-2 text-sm text-gray-400">🎯 Total Bets</p>
+              <p className="mb-2 text-sm text-gray-400">Total Bets</p>
               <p className="text-3xl font-bold text-white">{currentUser.totalBets}</p>
             </div>
             <div className="rounded-lg border border-gray-700 bg-black/50 p-4">
-              <p className="mb-2 text-sm text-gray-400">📈 Win Rate</p>
+              <p className="mb-2 text-sm text-gray-400">Win Rate</p>
               <p className="text-3xl font-bold text-white">{winRate}%</p>
             </div>
           </div>

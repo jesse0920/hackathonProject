@@ -34,9 +34,9 @@ export function ItemCard({
         <h3 className="mb-1 text-lg font-semibold text-white">{item.name}</h3>
         <p className="mb-3 min-h-10 text-sm text-gray-400">{item.description}</p>
 
-        <div className="mb-3 flex items-center gap-4 text-xs text-gray-400">
-          <span>📦 {item.condition}</span>
-          <span>👤 {item.ownerName}</span>
+        <div className="mb-3 flex items-center gap-4 text-xs text-gray-400 font-bold">
+          <span>Condition: {item.condition}</span>
+          <span>Owner: {item.ownerName}</span>
         </div>
 
         <div className="flex items-center justify-between gap-2">

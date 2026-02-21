@@ -57,7 +57,7 @@ export function RouletteWheel({ items, isSpinning, spinAngle }: RouletteWheelPro
       </div>
 
       <div className="absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-2">
-        <div className="h-0 w-0 border-l-[20px] border-r-[20px] border-t-[30px] border-l-transparent border-r-transparent border-t-yellow-400" />
+        <div className="h-0 w-0 border-l-20 border-r-20 border-t-30 border-l-transparent border-r-transparent border-t-yellow-400" />
       </div>
     </div>
   );
