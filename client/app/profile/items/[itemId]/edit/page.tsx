@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Buffer } from "node:buffer";
+import { AiListingCopilot } from "@/components/profile/ai-listing-copilot";
 import { VegasHeader } from "@/components/vegas/header";
 import { createClient } from "@/lib/supabase/server";
 
@@ -147,6 +148,8 @@ export default async function EditItemPage({ params }: EditItemPageProps) {
         </div>
 
         <form action={updateItem} className="space-y-5 rounded-xl border border-zinc-800 bg-zinc-900/70 p-6">
+          <AiListingCopilot />
+
           <div>
             <label htmlFor="name" className="mb-2 block text-sm font-semibold text-zinc-200">
               Item Name
