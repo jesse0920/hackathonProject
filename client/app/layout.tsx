@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Potzi",
-  description: "Las Vegas community item marketplace and gamble pool",
+  description: "Las Vegas community item swap and gamble pool",
 };
 
 export default function RootLayout({

@@ -75,14 +75,14 @@ export default async function WonItemsPage() {
   ]);
 
   const senderNameById = new Map(
-    (senderRows ?? []).map((row) => [row.id, row.name || "Unknown"]),
+    (senderRows ?? []).map((row) => [row.id, (row.name || "Player").trim() || "Player"]),
   );
   const itemById = new Map(
     (itemRows ?? []).map((row) => [String(row.item_id ?? ""), row]),
   );
 
   const wonItems = receivedRows.map((row) => {
-    const senderName = row.sender_id ? (senderNameById.get(row.sender_id) ?? "Unknown") : "Unknown";
+    const senderName = row.sender_id ? (senderNameById.get(row.sender_id) ?? "Player") : "Player";
     const itemRow =
       itemById.get(String(row.item_id)) ?? {
         item_id: row.item_id,

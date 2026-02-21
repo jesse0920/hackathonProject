@@ -20,15 +20,6 @@ export interface User {
   totalBets: number;
 }
 
-export const categories = [
-  "All",
-  "Sports",
-  "Clothing",
-  "Electronics",
-  "Accessories",
-  "Outdoor",
-] as const;
-
 type UnknownItemRow = Record<string, unknown>;
 
 function toStringValue(value: unknown, fallback = "") {
@@ -69,6 +60,11 @@ export function mapRowToItem(row: UnknownItemRow): Item {
       : typeof nestedProfiles === "object" && nestedProfiles !== null
         ? toStringValue((nestedProfiles as UnknownItemRow).name)
         : "";
+  const ownerNameCandidate = toStringValue(
+    row.owner_name ?? row.ownerName ?? row.user_name ?? profileName,
+    "",
+  ).trim();
+  const ownerName = ownerNameCandidate || "Player";
 
   return {
     id,
@@ -79,10 +75,7 @@ export function mapRowToItem(row: UnknownItemRow): Item {
     category: toStringValue(row.category, "Misc"),
     condition: toConditionValue(row.condition),
     ownerId,
-    ownerName: toStringValue(
-      row.owner_name ?? row.ownerName ?? row.user_name ?? profileName,
-      ownerId ? `User ${ownerId.slice(0, 8)}` : "Unknown",
-    ),
+    ownerName,
     availableForGamble: toBooleanValue(row.available_for_gamble ?? row.availableForGamble, true),
   };
 }

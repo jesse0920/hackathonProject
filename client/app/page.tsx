@@ -7,7 +7,32 @@ import { createClient } from "@/lib/supabase/server";
 export default async function Home() {
   const supabase = await createClient();
   const { data: itemRows } = await supabase.from("items").select("*");
-  const featuredItems = (itemRows ?? []).map((row) => mapRowToItem(row)).slice(0, 3);
+  const ownerIds = Array.from(
+    new Set(
+      (itemRows ?? [])
+        .map((row) => (typeof row.user_id === "string" ? row.user_id : null))
+        .filter((value): value is string => !!value),
+    ),
+  );
+
+  const { data: profileRows } =
+    ownerIds.length > 0
+      ? await supabase.from("profiles").select("id, name").in("id", ownerIds)
+      : { data: [] as { id: string; name: string | null }[] };
+  const ownerNameById = new Map(
+    (profileRows ?? []).map((profile) => [profile.id, (profile.name || "Player").trim() || "Player"]),
+  );
+
+  const featuredItems = (itemRows ?? [])
+    .map((row) =>
+      mapRowToItem({
+        ...row,
+        owner_name:
+          (typeof row.user_id === "string" && ownerNameById.get(row.user_id)) ||
+          row.owner_name,
+      }),
+    )
+    .slice(0, 3);
 
   return (
     <div className="page-shell">
@@ -62,10 +87,10 @@ export default async function Home() {
               </Link>
               <div className="grid grid-cols-2 gap-2">
                 <Link
-                  href="/marketplace"
+                  href="/profile"
                   className="rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2 text-center text-sm font-semibold text-zinc-100 hover:border-zinc-400"
                 >
-                  Browse Board
+                  My Profile
                 </Link>
                 <Link
                   href="/profile/items/new"
@@ -136,8 +161,8 @@ export default async function Home() {
         <div className="mx-auto max-w-6xl">
           <div className="mb-8 flex items-end justify-between gap-4">
             <h2 className="text-3xl font-bold text-amber-200 sm:text-4xl">Featured Items</h2>
-            <Link href="/marketplace" className="text-sm font-semibold text-amber-300 hover:text-amber-200">
-              View all
+            <Link href="/profile/items/new" className="text-sm font-semibold text-amber-300 hover:text-amber-200">
+              Add your item
             </Link>
           </div>
           <div className="grid gap-6 md:grid-cols-3">

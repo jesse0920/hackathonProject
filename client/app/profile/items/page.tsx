@@ -26,7 +26,12 @@ export default async function MyItemsPage() {
 
   const { data: itemRows } = await supabase.from("items").select("*");
   const myItems = (itemRows ?? [])
-    .map((row) => mapRowToItem(row))
+    .map((row) =>
+      mapRowToItem({
+        ...row,
+        owner_name: displayName,
+      }),
+    )
     .filter(
       (item) =>
         item.ownerId === user.id ||
