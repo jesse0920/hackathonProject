@@ -23,15 +23,12 @@ export default async function MyItemsPage() {
     .maybeSingle();
 
   const displayName = profile?.name || fallbackUsername;
-  const { data: itemRows } = await supabase.from("items").select("*");
-  const myItems = (itemRows ?? [])
-    .map((row) => mapRowToItem(row))
-    .filter(
-      (item) =>
-        item.ownerId === user.id ||
-        item.ownerName === displayName ||
-        item.ownerName === "You",
-  );
+  const { data: itemRows } = await supabase
+    .from("items")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("item_id", { ascending: false });
+  const myItems = (itemRows ?? []).map((row) => mapRowToItem(row));
 
   return (
     <div className="min-h-screen bg-black">

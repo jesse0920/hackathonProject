@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { VegasHeader } from "@/components/vegas/header";
 import { ItemCard } from "@/components/vegas/item-card";
@@ -26,6 +27,7 @@ export default function PoolPage() {
   const [showResult, setShowResult] = useState(false);
   const [spinAngle, setSpinAngle] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -41,8 +43,107 @@ export default function PoolPage() {
       setIsLoading(false);
     };
 
+    const loadCurrentUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      setCurrentUserId(data.user?.id ?? null);
+    };
+
     void loadItems();
+    void loadCurrentUser();
   }, []);
+
+  const handleWonItemsSave = async (winner: Item, poolItems: Item[]) => {
+    const supabase = createClient();
+
+    let activeUserId = currentUserId;
+    if (!activeUserId) {
+      const { data } = await supabase.auth.getUser();
+      activeUserId = data.user?.id ?? null;
+      setCurrentUserId(activeUserId);
+    }
+
+    if (!activeUserId || winner.ownerId !== activeUserId) {
+      return;
+    }
+
+    // Increment wins on each successful personal spin win.
+    const { data: profileRow } = await supabase
+      .from("profiles")
+      .select("wins")
+      .eq("id", activeUserId)
+      .maybeSingle();
+    let winsError: { message?: string } | null = null;
+
+    if (profileRow) {
+      const nextWins = (profileRow.wins ?? 0) + 1;
+      const result = await supabase
+        .from("profiles")
+        .update({ wins: nextWins })
+        .eq("id", activeUserId);
+      winsError = result.error;
+    } else {
+      const { data: authData } = await supabase.auth.getUser();
+      const fallbackName = authData.user?.email?.split("@")[0] || "player";
+      const result = await supabase.from("profiles").upsert(
+        {
+          id: activeUserId,
+          name: fallbackName,
+          wins: 1,
+          totalBets: 0,
+        },
+        { onConflict: "id" },
+      );
+      winsError = result.error;
+    }
+
+    if (winsError) {
+      setNotice("You won, but updating your wins count failed.");
+      window.setTimeout(() => setNotice(null), 3500);
+    }
+
+    const wonItems = Array.from(
+      new Map(
+        poolItems
+          .filter((item) => item.ownerId && item.ownerId !== activeUserId)
+          .map((item) => [String(item.id), item]),
+      ).values(),
+    );
+
+    if (wonItems.length === 0) {
+      if (!winsError) {
+        setNotice("Win recorded.");
+        window.setTimeout(() => setNotice(null), 3500);
+      }
+      return;
+    }
+
+    const results = await Promise.all(
+      wonItems.map(async (item) => {
+        const response = await fetch("/api/profile/received", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            itemId: item.id,
+            senderId: item.ownerId || null,
+            note: "Won in gamble spin",
+          }),
+        });
+
+        return response.ok;
+      }),
+    );
+
+    if (results.every(Boolean)) {
+      setNotice(`Saved ${wonItems.length} won item${wonItems.length > 1 ? "s" : ""} to your profile.`);
+      window.setTimeout(() => setNotice(null), 3500);
+      return;
+    }
+
+    setNotice("Some won items could not be saved. Try spinning again.");
+    window.setTimeout(() => setNotice(null), 3500);
+  };
 
   const handleSelectItem = (item: Item) => {
     setSelectedItems((previous) => {
@@ -71,17 +172,19 @@ export default function PoolPage() {
   };
 
   const handleSpin = () => {
-    if (selectedItems.length < 2) {
+    if (selectedItems.length < 1) {
       return;
     }
+
+    const poolSnapshot = [...selectedItems];
 
     setIsSpinning(true);
     setShowResult(false);
     setResult(null);
 
-    const winnerIndex = Math.floor(Math.random() * selectedItems.length);
-    const winner = selectedItems[winnerIndex];
-    const segmentAngle = 360 / selectedItems.length;
+    const winnerIndex = Math.floor(Math.random() * poolSnapshot.length);
+    const winner = poolSnapshot[winnerIndex];
+    const segmentAngle = 360 / poolSnapshot.length;
     const targetAngle = 360 - (winnerIndex * segmentAngle + segmentAngle / 2);
     const extraTurns = 360 * 5;
 
@@ -91,6 +194,7 @@ export default function PoolPage() {
       setResult(winner);
       setIsSpinning(false);
       setShowResult(true);
+      void handleWonItemsSave(winner, poolSnapshot);
     }, 4000);
   };
 
@@ -120,7 +224,7 @@ export default function PoolPage() {
         <div className="mb-8 text-center">
           <h1 className="mb-2 text-4xl font-bold text-white">Gamble Zone</h1>
           <p className="text-gray-400">
-            Select 2-6 items to enter the pool, then spin the wheel to see who wins it all.
+            Select 1-6 items to enter the pool, then spin the wheel to see who wins it all.
           </p>
         </div>
 
@@ -131,7 +235,6 @@ export default function PoolPage() {
             <div className="mt-8 text-center">
               <p className="mb-4 text-gray-400">
                 {selectedItems.length} {selectedItems.length === 1 ? "item" : "items"} selected
-                {selectedItems.length < 2 ? " (minimum 2 required)" : ""}
                 {selectedItems.length >= 6 ? " (maximum reached)" : ""}
               </p>
 
@@ -139,7 +242,7 @@ export default function PoolPage() {
                 <button
                   type="button"
                   onClick={handleSpin}
-                  disabled={selectedItems.length < 2 || isSpinning}
+                  disabled={selectedItems.length < 1 || isSpinning}
                   className="rounded-lg bg-yellow-400 px-8 py-3 font-semibold text-black transition-colors hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isSpinning ? "⟳ Spinning..." : "Spin The Wheel"}
@@ -162,6 +265,19 @@ export default function PoolPage() {
                 <div className="text-center">
                   <h2 className="mb-2 text-3xl font-bold text-white">Winner!</h2>
                   <p className="mb-4 text-xl text-yellow-400">{result.ownerName} wins all items!</p>
+                  {currentUserId && result.ownerId === currentUserId ? (
+                    <div className="mb-4">
+                      <p className="text-sm text-green-300">
+                        You won this spin. Won items are being saved to your profile.
+                      </p>
+                      <Link
+                        href="/profile/won"
+                        className="mt-3 inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500"
+                      >
+                        View Won Items
+                      </Link>
+                    </div>
+                  ) : null}
                   <div className="mx-auto max-w-sm">
                     <ItemCard item={result} />
                   </div>

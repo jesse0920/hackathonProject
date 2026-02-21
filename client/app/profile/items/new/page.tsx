@@ -22,8 +22,43 @@ export default async function AddItemPage() {
     redirect("/login?error=Please sign in to add an item");
   }
 
-  async function submitItem() {
+  async function submitItem(formData: FormData) {
     "use server";
+
+    const sb = await createClient();
+    const {
+      data: { user: actionUser },
+    } = await sb.auth.getUser();
+
+    if (!actionUser) {
+      redirect("/login?error=Please sign in to add an item");
+    }
+
+    const name = String(formData.get("name") ?? "").trim();
+    const description = String(formData.get("description") ?? "").trim();
+    const category = String(formData.get("category") ?? "").trim();
+    const condition = String(formData.get("condition") ?? "").trim();
+    const imageUrl = String(formData.get("imageUrl") ?? "").trim();
+    const estimatedValue = Number(String(formData.get("estimatedValue") ?? ""));
+
+    if (!name || !imageUrl || !Number.isFinite(estimatedValue) || estimatedValue <= 0) {
+      redirect("/profile/items/new");
+    }
+
+    const { error } = await sb.rpc("post_my_item", {
+      item_name: name,
+      item_desc: description,
+      item_price: estimatedValue,
+      item_url: imageUrl,
+      item_category: category || null,
+      item_condition: condition || "Good",
+    });
+
+    if (error) {
+      console.error("[profile-items-new] failed to create item", error);
+      redirect("/profile/items/new");
+    }
+
     redirect("/profile/items");
   }
 

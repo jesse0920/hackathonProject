@@ -19,6 +19,7 @@ declare
   user_a uuid;
   user_b uuid;
   user_c uuid;
+  sample_item_id text;
 begin
   select id into user_a
   from public.profiles
@@ -67,6 +68,21 @@ begin
     where i.name = seed_rows.name
       and i.user_id = seed_rows.user_id
   );
+
+  -- Optional sample received-item record (only if backend table exists).
+  if to_regclass('public.profile_received_items') is not null then
+    select i.item_id::text into sample_item_id
+    from public.items i
+    where i.user_id = user_a
+    order by i.item_id
+    limit 1;
+
+    if sample_item_id is not null then
+      insert into public.profile_received_items (receiver_id, item_id, sender_id, note)
+      values (user_b, sample_item_id, user_a, 'Seeded sample received item')
+      on conflict (receiver_id, item_id) do nothing;
+    end if;
+  end if;
 end $$;
 
 commit;

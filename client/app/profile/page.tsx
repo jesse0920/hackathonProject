@@ -54,10 +54,13 @@ export default async function ProfilePage() {
   const wins = profile?.wins ?? 0;
   const totalBets = profile?.totalBets ?? 0;
 
-  const { data: itemRows } = await supabase.from("items").select("*");
-  const previewItem = (itemRows ?? [])
-    .map((row) => mapRowToItem(row))
-    .find((item) => item.ownerId === user.id || item.ownerName === displayName);
+  const { data: itemRows } = await supabase
+    .from("items")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("item_id", { ascending: false })
+    .limit(1);
+  const previewItem = (itemRows ?? []).map((row) => mapRowToItem(row))[0];
 
   return (
     <div className="min-h-screen bg-black">
@@ -114,6 +117,12 @@ export default async function ProfilePage() {
               className="rounded-lg bg-yellow-400 px-6 py-3 font-semibold text-black transition-colors hover:bg-yellow-300"
             >
               My Items
+            </Link>
+            <Link
+              href="/profile/won"
+              className="rounded-lg bg-emerald-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-emerald-500"
+            >
+              Won Items
             </Link>
             <Link
               href="/profile/items/new"
