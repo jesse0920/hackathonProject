@@ -5,6 +5,8 @@ import { MyItemsManager } from "@/components/profile/my-items-manager";
 import { mapRowToItem } from "@/lib/vegas-data";
 import { createClient } from "@/lib/supabase/server";
 
+export const dynamic = "force-dynamic";
+
 export default async function MyItemsPage() {
   const supabase = await createClient();
   const {
@@ -24,12 +26,43 @@ export default async function MyItemsPage() {
 
   const displayName = profile?.name || fallbackUsername;
 
-  const { data: itemRows } = await supabase
+  const primaryItemProjection =
+    "item_id, name, desc, price, url, category, condition, user_id, owner_name, available_for_gamble";
+  const fallbackItemProjection =
+    "item_id, name, desc, price, url, category, condition, user_id";
+  const minimalItemProjection = "item_id, name, price, user_id, url";
+
+  const { data: primaryItemRows, error: primaryItemError } = await supabase
     .from("items")
-    .select("item_id, name, desc, price, url, category, condition, user_id, owner_name, available_for_gamble")
+    .select(primaryItemProjection)
     .eq("user_id", user.id)
     .order("item_id", { ascending: false });
-  const myItems = (itemRows ?? []).map((row) =>
+  const { data: fallbackItemRows, error: fallbackItemError } = primaryItemError
+    ? await supabase
+        .from("items")
+        .select(fallbackItemProjection)
+        .eq("user_id", user.id)
+        .order("item_id", { ascending: false })
+    : { data: null, error: null };
+  const { data: minimalItemRows, error: minimalItemError } =
+    primaryItemError && fallbackItemError
+      ? await supabase
+          .from("items")
+          .select(minimalItemProjection)
+          .eq("user_id", user.id)
+          .order("item_id", { ascending: false })
+      : { data: null, error: null };
+
+  if (primaryItemError && fallbackItemError && minimalItemError) {
+    console.error("[profile/items] failed to load items", {
+      primary: primaryItemError.message,
+      fallback: fallbackItemError.message,
+      minimal: minimalItemError.message,
+    });
+  }
+
+  const itemRows = primaryItemRows ?? fallbackItemRows ?? minimalItemRows ?? [];
+  const myItems = itemRows.map((row) =>
     mapRowToItem({
       ...row,
       owner_name: displayName,
