@@ -49,7 +49,7 @@ export default async function Home() {
         }}
       >
         <div className="absolute inset-0 bg-black/65" />
-        <div className="relative mx-auto grid min-h-[30rem] w-full max-w-6xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
+        <div className="relative mx-auto grid min-h-120 w-full max-w-6xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
               Vegas Community Swap

@@ -189,10 +189,6 @@ begin
     raise exception using message = 'Item price must be greater than 0.', errcode = '22023';
   end if;
 
-  if nullif(trim(item_url), '') is null then
-    raise exception using message = 'Item image URL is required.', errcode = '22023';
-  end if;
-
   normalized_condition := case
     when item_condition in ('New', 'Like New', 'Good', 'Fair') then item_condition
     else 'Good'
@@ -203,7 +199,7 @@ begin
     trim(item_name),
     coalesce(trim(item_desc), ''),
     item_price,
-    trim(item_url),
+    coalesce(nullif(trim(item_url), ''), '/file.svg'),
     coalesce(nullif(trim(item_category), ''), 'Misc'),
     normalized_condition,
     current_user_id

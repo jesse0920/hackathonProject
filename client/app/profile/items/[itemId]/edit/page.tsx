@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Buffer } from "node:buffer";
 import { VegasHeader } from "@/components/vegas/header";
 import { createClient } from "@/lib/supabase/server";
 
@@ -11,6 +12,7 @@ const categoryOptions = [
   "Outdoor",
 ] as const;
 const conditionOptions = ["New", "Like New", "Good", "Fair"] as const;
+const maxImageUploadBytes = 5 * 1024 * 1024;
 
 type EditItemPageProps = {
   params: Promise<{ itemId: string }>;
@@ -61,10 +63,33 @@ export default async function EditItemPage({ params }: EditItemPageProps) {
     const category = String(formData.get("category") ?? "").trim();
     const condition = String(formData.get("condition") ?? "").trim();
     const imageUrl = String(formData.get("imageUrl") ?? "").trim();
+    const imageUploadInput = formData.get("imageUpload");
+    const imageUpload =
+      typeof File !== "undefined" && imageUploadInput instanceof File
+        ? imageUploadInput
+        : null;
+    const hasUploadedImage = Boolean(imageUpload && imageUpload.size > 0);
+    const existingImageUrl = typeof item.url === "string" ? item.url : "";
     const estimatedValue = Number(String(formData.get("estimatedValue") ?? ""));
 
-    if (!name || !imageUrl || !Number.isFinite(estimatedValue) || estimatedValue <= 0) {
+    if (
+      !name ||
+      !Number.isFinite(estimatedValue) ||
+      estimatedValue <= 0 ||
+      (!imageUrl && !hasUploadedImage && !existingImageUrl)
+    ) {
       redirect(`/profile/items/${numericItemId}/edit`);
+    }
+
+    let resolvedImageUrl = imageUrl || existingImageUrl;
+
+    if (!imageUrl && imageUpload) {
+      if (!imageUpload.type.startsWith("image/") || imageUpload.size > maxImageUploadBytes) {
+        redirect(`/profile/items/${numericItemId}/edit`);
+      }
+
+      const buffer = Buffer.from(await imageUpload.arrayBuffer());
+      resolvedImageUrl = `data:${imageUpload.type};base64,${buffer.toString("base64")}`;
     }
 
     const { error } = await sb
@@ -73,7 +98,7 @@ export default async function EditItemPage({ params }: EditItemPageProps) {
         name,
         desc: description,
         price: estimatedValue,
-        url: imageUrl,
+        url: resolvedImageUrl,
         category: category || "Misc",
         condition: condition || "Good",
       })
@@ -123,7 +148,7 @@ export default async function EditItemPage({ params }: EditItemPageProps) {
 
           <div>
             <label htmlFor="imageUpload" className="mb-2 block text-sm font-semibold text-zinc-200">
-              Upload Image
+              Upload Image (required if Image URL is empty)
             </label>
             <input
               id="imageUpload"
@@ -132,6 +157,7 @@ export default async function EditItemPage({ params }: EditItemPageProps) {
               accept="image/*"
               className="w-full rounded-lg border border-dashed border-zinc-600 bg-slate-950 px-4 py-3 text-sm text-zinc-200 file:mr-4 file:rounded file:border-0 file:bg-zinc-700 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-zinc-600"
             />
+            <p className="mt-2 text-xs text-zinc-400">Max upload size: 5MB.</p>
           </div>
 
           <div>
@@ -206,13 +232,12 @@ export default async function EditItemPage({ params }: EditItemPageProps) {
 
             <div>
               <label htmlFor="imageUrl" className="mb-2 block text-sm font-semibold text-zinc-200">
-                Image URL
+                Image URL (optional if you upload)
               </label>
               <input
                 id="imageUrl"
                 name="imageUrl"
                 type="url"
-                required
                 defaultValue={typeof item.url === "string" ? item.url : ""}
                 className="w-full rounded-lg border border-zinc-700 bg-slate-950 px-4 py-2 text-white outline-none focus:border-amber-300"
               />
