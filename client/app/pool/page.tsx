@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { VegasHeader } from "@/components/vegas/header";
 import { ItemCard } from "@/components/vegas/item-card";
@@ -19,6 +20,7 @@ function getTier(value: number) {
 }
 
 export default function PoolPage() {
+  const router = useRouter();
   const [items, setItems] = useState<Item[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedItems, setSelectedItems] = useState<Item[]>([]);
@@ -50,10 +52,10 @@ export default function PoolPage() {
 
       let ownerNameById = new Map<string, string>();
       if (ownerIds.length > 0) {
-        const { data: profileRows } = await supabase
-          .from("profiles")
-          .select("id, name")
-          .in("id", ownerIds);
+        const { data: profileRowsRaw } = await supabase.rpc("get_profile_names", {
+          profile_ids: ownerIds,
+        });
+        const profileRows = (profileRowsRaw ?? []) as { id: string; name: string | null }[];
 
         ownerNameById = new Map(
           (profileRows ?? []).map((profile) => [
@@ -248,87 +250,12 @@ export default function PoolPage() {
     window.setTimeout(() => setNotice(null), 3000);
   };
 
-  const handleEditItem = async (item: Item) => {
+  const handleEditItem = (item: Item) => {
     if (!currentUserId || item.ownerId !== currentUserId) {
       return;
     }
 
-    const nextName = window.prompt("Edit item name:", item.name);
-    if (nextName === null) return;
-
-    const nextDescription = window.prompt("Edit item description:", item.description);
-    if (nextDescription === null) return;
-
-    const nextPriceInput = window.prompt("Edit item price:", String(item.price));
-    if (nextPriceInput === null) return;
-    const nextPrice = Number(nextPriceInput);
-
-    if (!nextName.trim()) {
-      setNotice("Item name cannot be empty.");
-      window.setTimeout(() => setNotice(null), 3000);
-      return;
-    }
-
-    if (!Number.isFinite(nextPrice) || nextPrice <= 0) {
-      setNotice("Price must be a positive number.");
-      window.setTimeout(() => setNotice(null), 3000);
-      return;
-    }
-
-    const numericItemId = Number(item.id);
-    if (!Number.isFinite(numericItemId)) {
-      setNotice("Unable to edit item: invalid item id.");
-      window.setTimeout(() => setNotice(null), 3000);
-      return;
-    }
-
-    const supabase = createClient();
-    const { data: updatedRow, error } = await supabase
-      .from("items")
-      .update({
-        name: nextName.trim(),
-        desc: nextDescription.trim(),
-        price: nextPrice,
-      })
-      .eq("item_id", numericItemId)
-      .eq("user_id", currentUserId)
-      .select("*")
-      .maybeSingle();
-
-    if (error) {
-      setNotice(`Failed to edit item: ${error.message}`);
-      window.setTimeout(() => setNotice(null), 3500);
-      return;
-    }
-
-    if (!updatedRow) {
-      setNotice("Item update failed.");
-      window.setTimeout(() => setNotice(null), 3000);
-      return;
-    }
-
-    const updatedItem = mapRowToItem({
-      ...updatedRow,
-      owner_name: item.ownerName,
-    });
-
-    setItems((previous) =>
-      previous.map((existingItem) =>
-        String(existingItem.id) === String(item.id) ? updatedItem : existingItem,
-      ),
-    );
-    setSelectedItems((previous) =>
-      previous.map((existingItem) =>
-        String(existingItem.id) === String(item.id) ? updatedItem : existingItem,
-      ),
-    );
-
-    if (result && String(result.id) === String(item.id)) {
-      setResult(updatedItem);
-    }
-
-    setNotice("Item updated.");
-    window.setTimeout(() => setNotice(null), 3000);
+    router.push(`/profile/items/${item.id}/edit`);
   };
 
   const handleSpin = () => {

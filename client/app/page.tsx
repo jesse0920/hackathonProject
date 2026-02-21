@@ -15,10 +15,11 @@ export default async function Home() {
     ),
   );
 
-  const { data: profileRows } =
+  const { data: profileRowsRaw } =
     ownerIds.length > 0
-      ? await supabase.from("profiles").select("id, name").in("id", ownerIds)
+      ? await supabase.rpc("get_profile_names", { profile_ids: ownerIds })
       : { data: [] as { id: string; name: string | null }[] };
+  const profileRows = (profileRowsRaw ?? []) as { id: string; name: string | null }[];
   const ownerNameById = new Map(
     (profileRows ?? []).map((profile) => [profile.id, (profile.name || "Player").trim() || "Player"]),
   );
@@ -165,11 +166,20 @@ export default async function Home() {
               Add your item
             </Link>
           </div>
-          <div className="grid gap-6 md:grid-cols-3">
-            {featuredItems.map((item) => (
-              <ItemCard key={item.id} item={item} />
-            ))}
-          </div>
+          {featuredItems.length === 0 ? (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/70 p-8 text-center">
+              <p className="text-zinc-300">No user-listed items yet.</p>
+              <p className="mt-2 text-sm text-zinc-400">
+                Be the first to add a real item to the marketplace.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-3">
+              {featuredItems.map((item) => (
+                <ItemCard key={item.id} item={item} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

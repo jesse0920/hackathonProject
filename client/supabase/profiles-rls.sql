@@ -355,9 +355,21 @@ select coalesce(
 );
 $$;
 
+create or replace function public.get_profile_names(profile_ids uuid[])
+returns table (id uuid, name text)
+language sql
+security definer
+set search_path = public
+as $$
+  select p.id, coalesce(nullif(trim(p.name), ''), 'Player') as name
+  from public.profiles p
+  where p.id = any(profile_ids);
+$$;
+
 grant execute on function public.set_my_profile_name(text) to authenticated;
 grant execute on function public.post_my_item(text, text, numeric, text, text, text) to authenticated;
 grant execute on function public.add_received_item(text, uuid, text) to authenticated;
 grant execute on function public.get_my_profile_backend() to authenticated;
+grant execute on function public.get_profile_names(uuid[]) to authenticated;
 
 commit;
