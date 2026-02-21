@@ -39,6 +39,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+
   if (isAuthPage && user) {
     const profileUrl = request.nextUrl.clone();
     profileUrl.pathname = "/profile";

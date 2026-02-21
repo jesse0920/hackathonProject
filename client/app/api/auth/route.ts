@@ -76,6 +76,7 @@ export async function POST(req: Request) {
     }
 
     const user = data.user;
+
     if (user) {
       const { error: profileError } = await supabase.from("profiles").upsert(
         {
@@ -135,7 +136,8 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       message: "Account created.",
-      redirectTo: "/profile",
+      // Show client-only onboarding immediately after a successful signup/session
+      redirectTo: "/onboarding",
     });
   }
 
