@@ -13,6 +13,20 @@ const categoryOptions = [
 ] as const;
 const conditionOptions = ["New", "Like New", "Good", "Fair"] as const;
 const maxImageUploadBytes = 5 * 1024 * 1024;
+const imageUploadAccept = ".png,.jpg,.jpeg,image/png,image/jpeg,image/jpg";
+
+function resolveAllowedImageUploadMimeType(file: File): "image/png" | "image/jpeg" | null {
+  const normalizedType = file.type.toLowerCase();
+  if (normalizedType === "image/png") return "image/png";
+  if (normalizedType === "image/jpeg" || normalizedType === "image/jpg" || normalizedType === "image/pjpeg") {
+    return "image/jpeg";
+  }
+
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  if (extension === "png") return "image/png";
+  if (extension === "jpg" || extension === "jpeg") return "image/jpeg";
+  return null;
+}
 
 type EditItemPageProps = {
   params: Promise<{ itemId: string }>;
@@ -84,12 +98,13 @@ export default async function EditItemPage({ params }: EditItemPageProps) {
     let resolvedImageUrl = imageUrl || existingImageUrl;
 
     if (!imageUrl && imageUpload) {
-      if (!imageUpload.type.startsWith("image/") || imageUpload.size > maxImageUploadBytes) {
+      const uploadMimeType = resolveAllowedImageUploadMimeType(imageUpload);
+      if (!uploadMimeType || imageUpload.size > maxImageUploadBytes) {
         redirect(`/profile/items/${numericItemId}/edit`);
       }
 
       const buffer = Buffer.from(await imageUpload.arrayBuffer());
-      resolvedImageUrl = `data:${imageUpload.type};base64,${buffer.toString("base64")}`;
+      resolvedImageUrl = `data:${uploadMimeType};base64,${buffer.toString("base64")}`;
     }
 
     const { error } = await sb
@@ -154,10 +169,10 @@ export default async function EditItemPage({ params }: EditItemPageProps) {
               id="imageUpload"
               name="imageUpload"
               type="file"
-              accept="image/*"
+              accept={imageUploadAccept}
               className="w-full rounded-lg border border-dashed border-zinc-600 bg-slate-950 px-4 py-3 text-sm text-zinc-200 file:mr-4 file:rounded file:border-0 file:bg-zinc-700 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-zinc-600"
             />
-            <p className="mt-2 text-xs text-zinc-400">Max upload size: 5MB.</p>
+            <p className="mt-2 text-xs text-zinc-400">Max upload size: 5MB. Allowed: PNG, JPG, JPEG.</p>
           </div>
 
           <div>
