@@ -4,6 +4,7 @@ type RouletteWheelProps = {
   items: Item[];
   isSpinning: boolean;
   spinAngle: number;
+  spinDurationMs?: number;
 };
 
 const colors = ["#1f2937", "#334155", "#475569", "#7f1d1d", "#b45309", "#312e81"];
@@ -24,12 +25,19 @@ function describeArc(cx: number, cy: number, r: number, startAngle: number, endA
   return [`M ${cx} ${cy}`, `L ${start.x} ${start.y}`, `A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`, "Z"].join(" ");
 }
 
-export function RouletteWheel({ items, isSpinning, spinAngle }: RouletteWheelProps) {
+export function RouletteWheel({
+  items,
+  isSpinning,
+  spinAngle,
+  spinDurationMs = 4000,
+}: RouletteWheelProps) {
   const size = 320; // px
   const radius = 140;
   const center = size / 2;
 
-  const transition = isSpinning ? "transform 4s cubic-bezier(0.2, 0.8, 0.2, 1)" : "none";
+  const transition = isSpinning
+    ? `transform ${spinDurationMs}ms cubic-bezier(0.08, 0.92, 0.14, 1)`
+    : "none";
 
   return (
     <div className="relative mx-auto h-80 w-80">

@@ -21,6 +21,11 @@ type TradeCreateResponse = {
   };
 };
 
+function normalizeAngle(value: number) {
+  const normalized = value % 360;
+  return normalized < 0 ? normalized + 360 : normalized;
+}
+
 export default function PoolPage() {
   const router = useRouter();
   const [items, setItems] = useState<Item[]>([]);
@@ -30,6 +35,7 @@ export default function PoolPage() {
   const [result, setResult] = useState<Item | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [spinAngle, setSpinAngle] = useState(0);
+  const [spinDurationMs, setSpinDurationMs] = useState(4800);
   const [notice, setNotice] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [createdTradeId, setCreatedTradeId] = useState<number | null>(null);
@@ -171,17 +177,29 @@ export default function PoolPage() {
     const winnerIndex = Math.floor(Math.random() * candidatesSnapshot.length);
     const winner = candidatesSnapshot[winnerIndex];
     const segmentAngle = 360 / candidatesSnapshot.length;
-    const targetAngle = 360 - (winnerIndex * segmentAngle + segmentAngle / 2);
-    const extraTurns = 360 * 5;
+    const edgeBuffer = Math.min(segmentAngle * 0.2, 3);
+    const inSegmentMin = edgeBuffer;
+    const inSegmentMax = Math.max(inSegmentMin, segmentAngle - edgeBuffer);
+    const randomOffsetInSegment =
+      inSegmentMin + Math.random() * (inSegmentMax - inSegmentMin);
+    const winnerAngle = winnerIndex * segmentAngle + randomOffsetInSegment;
+    const targetAngle = normalizeAngle(360 - winnerAngle);
+    const extraTurns = 360 * (6 + Math.floor(Math.random() * 5));
+    const durationMs = 4200 + Math.floor(Math.random() * 1800);
+    setSpinDurationMs(durationMs);
 
-    setSpinAngle((previous) => previous + extraTurns + targetAngle);
+    setSpinAngle((previous) => {
+      const currentAngle = normalizeAngle(previous);
+      const deltaToTarget = normalizeAngle(targetAngle - currentAngle);
+      return previous + extraTurns + deltaToTarget;
+    });
 
     setTimeout(() => {
       setResult(winner);
       setIsSpinning(false);
       setShowResult(true);
       void createTradeRequest(selectedMyItem, winner);
-    }, 4000);
+    }, durationMs);
   };
 
   const handleReset = () => {
@@ -259,7 +277,12 @@ export default function PoolPage() {
               Selected stake: <span className="font-semibold text-amber-300">{selectedMyItem.name}</span> ({selectedTier})
             </p>
 
-            <RouletteWheel items={rouletteCandidates} isSpinning={isSpinning} spinAngle={spinAngle} />
+            <RouletteWheel
+              items={rouletteCandidates}
+              isSpinning={isSpinning}
+              spinAngle={spinAngle}
+              spinDurationMs={spinDurationMs}
+            />
 
             <div className="mt-8 text-center">
               <p className="mb-4 text-zinc-400">
