@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 type TradeRow = {
@@ -28,8 +28,8 @@ function parseTradeId(value: string) {
 }
 
 export async function PATCH(
-  req: Request,
-  { params }: { params: { tradeId: string } },
+  req: NextRequest,
+  { params }: { params: Promise<{ tradeId: string }> },
 ) {
   const supabase = await createClient();
   const {
@@ -41,7 +41,7 @@ export async function PATCH(
     return errorResponse("Unauthorized.", 401);
   }
 
-  const tradeIdRaw = params.tradeId;
+  const { tradeId: tradeIdRaw } = await params;
   const tradeId = parseTradeId(tradeIdRaw);
   if (!tradeId) {
     return errorResponse("Invalid trade id.");
