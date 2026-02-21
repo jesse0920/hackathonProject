@@ -53,7 +53,12 @@ export default async function ProfilePage() {
     .select("*")
     .eq("user_id", user.id)
     .order("item_id", { ascending: false });
-  const myItems = (itemRows ?? []).map((row) => mapRowToItem(row));
+  const myItems = (itemRows ?? []).map((row) =>
+    mapRowToItem({
+      ...row,
+      owner_name: displayName,
+    }),
+  );
 
   return (
     <div className="page-shell">

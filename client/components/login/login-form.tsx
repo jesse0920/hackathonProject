@@ -36,6 +36,11 @@ export default function LoginForm({
       return;
     }
 
+    if (!username.trim()) {
+      setMessage("Please enter a username.");
+      return;
+    }
+
     if (submittedMode === "register" && password !== confirm) {
       setMessage("Passwords do not match.");
       return;
@@ -52,7 +57,7 @@ export default function LoginForm({
           mode: submittedMode,
           email,
           password,
-          username: submittedMode === "register" ? username : undefined,
+          username: username.trim(),
         }),
       });
 
@@ -82,20 +87,17 @@ export default function LoginForm({
       <div className={styles.sub}>Choose a mode, then continue.</div>
 
       <form onSubmit={handleSubmit}>
-
-        {mode === "register" && (
-          <div className={styles.field}>
-            <label className={styles.label}>Username</label>
-            <input
-              className={styles.input}
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Your display name"
-              required
-            />
-          </div>
-        )}
+        <div className={styles.field}>
+          <label className={styles.label}>Username</label>
+          <input
+            className={styles.input}
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Your display name"
+            required
+          />
+        </div>
 
         <div className={styles.field}>
           <label className={styles.label}>Email</label>

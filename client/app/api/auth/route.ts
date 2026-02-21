@@ -11,15 +11,11 @@ type AuthRequestBody = {
   username?: string;
 };
 
-function deriveUsername(email: string) {
-  return email.split("@")[0]?.trim().slice(0, 32) || "player";
-}
-
-function normalizeDisplayName(input: string | undefined, email: string) {
-  const base = (input?.trim() || deriveUsername(email)).slice(0, 64);
+function normalizeDisplayName(input: string) {
+  const base = input.trim().slice(0, 64);
   const withoutAt = base.replace(/@/g, " ");
   const safe = withoutAt.replace(/[^a-zA-Z0-9 _.-]/g, "").trim();
-  return safe || deriveUsername(email);
+  return safe;
 }
 
 export async function POST(req: Request) {
@@ -56,11 +52,11 @@ export async function POST(req: Request) {
     );
   }
 
-  const suppliedName = body.name ?? body.username;
-
-  if (body.mode === "register" && suppliedName && suppliedName.trim().length < 3) {
+  const suppliedName = (body.name ?? body.username ?? "").trim();
+  const normalizedName = normalizeDisplayName(suppliedName);
+  if (!normalizedName || normalizedName.length < 3) {
     return NextResponse.json(
-      { error: "Name must be at least 3 characters." },
+      { error: "Username must be at least 3 valid characters." },
       { status: 400 },
     );
   }
@@ -78,24 +74,41 @@ export async function POST(req: Request) {
     const user = data.user;
 
     if (user) {
-      const { error: profileError } = await supabase.from("profiles").upsert(
-        {
+      const { data: existingProfile, error: profileReadError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileReadError) {
+        console.error("[auth] profile read failed on login", profileReadError);
+      } else if (existingProfile) {
+        const { error: profileUpdateError } = await supabase
+          .from("profiles")
+          .update({ name: normalizedName })
+          .eq("id", user.id);
+
+        if (profileUpdateError) {
+          console.error("[auth] profile update failed on login", profileUpdateError);
+        }
+      } else {
+        const { error: profileInsertError } = await supabase.from("profiles").insert({
           id: user.id,
-          name: deriveUsername(body.email),
+          name: normalizedName,
           wins: 0,
           totalBets: 0,
-        },
-        { onConflict: "id", ignoreDuplicates: true },
-      );
-      if (profileError) {
-        console.error("[auth] profile upsert failed on login", profileError);
+        });
+
+        if (profileInsertError) {
+          console.error("[auth] profile insert failed on login", profileInsertError);
+        }
       }
     }
 
     return NextResponse.json({ ok: true, message: "Logged in.", redirectTo: "/profile" });
   }
 
-  const name = normalizeDisplayName(suppliedName, body.email);
+  const name = normalizedName;
   const { data, error } = await supabase.auth.signUp({
     email: body.email,
     password: body.password,

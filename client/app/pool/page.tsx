@@ -56,7 +56,10 @@ export default function PoolPage() {
           .in("id", ownerIds);
 
         ownerNameById = new Map(
-          (profileRows ?? []).map((profile) => [profile.id, profile.name || "Unknown"]),
+          (profileRows ?? []).map((profile) => [
+            profile.id,
+            (profile.name || "Player").trim() || "Player",
+          ]),
         );
       }
 
