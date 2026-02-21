@@ -59,7 +59,8 @@ export async function GET() {
     .from("trade_requests")
     .select("trade_id, requester_id, recipient_id, requester_item_id, recipient_item_id, requester_approved, recipient_approved, status, meetup_location, created_at, updated_at, declined_by")
     .or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(50);
 
   if (tradeError) {
     return errorResponse(tradeError.message);

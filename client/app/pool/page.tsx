@@ -21,15 +21,64 @@ type TradeCreateResponse = {
   };
 };
 
+const POOL_ITEMS_CACHE_KEY = "potzi.pool.items.v3";
+const POOL_ITEMS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+type PoolItemsCachePayload = {
+  savedAt: number;
+  items: Item[];
+};
+
 function normalizeAngle(value: number) {
   const normalized = value % 360;
   return normalized < 0 ? normalized + 360 : normalized;
 }
 
+function readPoolItemsCache() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(POOL_ITEMS_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PoolItemsCachePayload;
+    if (
+      !parsed ||
+      !Array.isArray(parsed.items) ||
+      typeof parsed.savedAt !== "number"
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writePoolItemsCache(items: Item[]) {
+  if (typeof window === "undefined") return;
+  try {
+    const payload: PoolItemsCachePayload = {
+      savedAt: Date.now(),
+      items,
+    };
+    window.localStorage.setItem(POOL_ITEMS_CACHE_KEY, JSON.stringify(payload));
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
 export default function PoolPage() {
+  const initialCachedItems = readPoolItemsCache();
+  const hasFreshInitialCache = Boolean(
+    initialCachedItems &&
+      initialCachedItems.items.length > 0 &&
+      Date.now() - initialCachedItems.savedAt < POOL_ITEMS_CACHE_TTL_MS,
+  );
+
   const router = useRouter();
-  const [items, setItems] = useState<Item[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [items, setItems] = useState<Item[]>(
+    hasFreshInitialCache ? initialCachedItems?.items ?? [] : [],
+  );
+  const [isLoading, setIsLoading] = useState(!hasFreshInitialCache);
   const [selectedMyItem, setSelectedMyItem] = useState<Item | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
   const [result, setResult] = useState<Item | null>(null);
@@ -44,25 +93,63 @@ export default function PoolPage() {
     const supabase = createClient();
 
     const loadItems = async () => {
-      const { data, error } = await supabase.from("items").select("*");
-      if (error) {
-        setItems([]);
+      const cached = readPoolItemsCache();
+      const isFreshCache = Boolean(
+        cached &&
+          cached.items.length > 0 &&
+          Date.now() - cached.savedAt < POOL_ITEMS_CACHE_TTL_MS,
+      );
+
+      if (cached && cached.items.length > 0) {
+        setItems(cached.items);
         setIsLoading(false);
+      }
+
+      if (isFreshCache) {
         return;
       }
 
-      const ownerIds = Array.from(
+      const { data: primaryRows, error } = await supabase
+        .from("items")
+        .select("item_id, name, price, category, condition, user_id, url")
+        .order("item_id", { ascending: false })
+        .limit(200);
+      const { data: fallbackRows } = error
+        ? await supabase
+            .from("items")
+            .select("item_id, name, price, user_id, url")
+            .order("item_id", { ascending: false })
+            .limit(200)
+        : { data: null };
+      const data = primaryRows ?? fallbackRows ?? [];
+
+      if (error) {
+        // Keep rendering resilient even if the optimized projection fails.
+        if (data.length === 0) {
+          setItems([]);
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      const ownerIdsNeedingLookup = Array.from(
         new Set(
           (data ?? [])
-            .map((row) => (typeof row.user_id === "string" ? row.user_id : null))
+            .map((row) => {
+              const ownerNameValue = (row as Record<string, unknown>).owner_name;
+              const rawOwnerName =
+                typeof ownerNameValue === "string" ? ownerNameValue.trim() : "";
+              if (rawOwnerName.length > 0) return null;
+              return typeof row.user_id === "string" ? row.user_id : null;
+            })
             .filter((value): value is string => !!value),
         ),
       );
 
       let ownerNameById = new Map<string, string>();
-      if (ownerIds.length > 0) {
+      if (ownerIdsNeedingLookup.length > 0) {
         const { data: profileRowsRaw } = await supabase.rpc("get_profile_names", {
-          profile_ids: ownerIds,
+          profile_ids: ownerIdsNeedingLookup,
         });
         const profileRows = (profileRowsRaw ?? []) as { id: string; name: string | null }[];
 
@@ -74,16 +161,18 @@ export default function PoolPage() {
         );
       }
 
-      setItems(
-        (data ?? []).map((row) =>
-          mapRowToItem({
-            ...row,
-            owner_name:
-              (typeof row.user_id === "string" && ownerNameById.get(row.user_id)) ||
-              row.owner_name,
-          }),
-        ),
+      const mappedItems = (data ?? []).map((row) =>
+        mapRowToItem({
+          ...row,
+          owner_name:
+            (typeof row.user_id === "string" && ownerNameById.get(row.user_id)) ||
+            (row as Record<string, unknown>).owner_name,
+        }),
       );
+      setItems(
+        mappedItems,
+      );
+      writePoolItemsCache(mappedItems);
       setIsLoading(false);
     };
 
@@ -116,6 +205,22 @@ export default function PoolPage() {
   }, [items, selectedMyItem, currentUserId]);
 
   const selectedTier = selectedMyItem ? getValueTier(Number(selectedMyItem.price)) : null;
+  const myItemsByTier = useMemo(() => (
+    VALUE_TIERS.map((tier) => ({
+      tier,
+      items: myItems.filter(
+        (item) => item.price >= tier.min && item.price <= (tier.max ?? Number.POSITIVE_INFINITY),
+      ),
+    }))
+  ), [myItems]);
+  const otherItemsByTier = useMemo(() => (
+    VALUE_TIERS.map((tier) => ({
+      tier,
+      items: otherUsersItems.filter(
+        (item) => item.price >= tier.min && item.price <= (tier.max ?? Number.POSITIVE_INFINITY),
+      ),
+    }))
+  ), [otherUsersItems]);
 
   const handleSelectMyItem = (item: Item) => {
     if (!currentUserId || item.ownerId !== currentUserId) {
@@ -361,10 +466,7 @@ export default function PoolPage() {
             </p>
           ) : (
             <div className="space-y-8">
-              {VALUE_TIERS.map((tier) => {
-                const itemsInTier = myItems.filter(
-                  (item) => item.price >= tier.min && item.price <= (tier.max ?? Number.POSITIVE_INFINITY),
-                );
+              {myItemsByTier.map(({ tier, items: itemsInTier }) => {
                 if (itemsInTier.length === 0) return null;
 
                 return (
@@ -426,13 +528,7 @@ export default function PoolPage() {
             </p>
           ) : (
             <div className="space-y-6">
-              {VALUE_TIERS.map((tier) => {
-                const tierItems = otherUsersItems.filter(
-                  (item) =>
-                    item.price >= tier.min &&
-                    item.price <= (tier.max ?? Number.POSITIVE_INFINITY),
-                );
-
+              {otherItemsByTier.map(({ tier, items: tierItems }) => {
                 if (tierItems.length === 0) return null;
 
                 return (

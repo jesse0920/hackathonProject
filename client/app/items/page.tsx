@@ -7,7 +7,11 @@ import { VegasHeader } from "@/components/vegas/header";
 
 async function ItemsData() {
   const supabase = await createClient();
-  const { data: items } = await supabase.from("items").select();
+  const { data: items } = await supabase
+    .from("items")
+    .select("item_id, name, price, category, condition, user_id")
+    .order("item_id", { ascending: false })
+    .limit(50);
 
   return (
     <pre className="overflow-x-auto rounded-xl border border-zinc-800 bg-zinc-900/70 p-4 text-xs text-zinc-200">

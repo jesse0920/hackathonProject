@@ -70,7 +70,10 @@ export default async function WonItemsPage() {
       ? supabase.rpc("get_profile_names", { profile_ids: senderIds })
       : Promise.resolve({ data: [] as { id: string; name: string | null }[] }),
     numericItemIds.length > 0
-      ? supabase.from("items").select("*").in("item_id", numericItemIds)
+      ? supabase
+          .from("items")
+          .select("item_id, name, desc, price, url, category, condition, user_id, owner_name, available_for_gamble")
+          .in("item_id", numericItemIds)
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
   ]);
   const senderRows = (senderRowsRaw ?? []) as { id: string; name: string | null }[];

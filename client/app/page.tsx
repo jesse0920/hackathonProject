@@ -1,53 +1,27 @@
 import Link from "next/link";
+import Image from "next/image";
 import { VegasHeader } from "@/components/vegas/header";
-import { ItemCard } from "@/components/vegas/item-card";
-import { mapRowToItem } from "@/lib/vegas-data";
-import { createClient } from "@/lib/supabase/server";
+import { FeaturedItemsSection } from "@/components/vegas/featured-items-section";
 
 export default async function Home() {
-  const supabase = await createClient();
-  const { data: itemRows } = await supabase.from("items").select("*");
-  const ownerIds = Array.from(
-    new Set(
-      (itemRows ?? [])
-        .map((row) => (typeof row.user_id === "string" ? row.user_id : null))
-        .filter((value): value is string => !!value),
-    ),
-  );
-
-  const { data: profileRowsRaw } =
-    ownerIds.length > 0
-      ? await supabase.rpc("get_profile_names", { profile_ids: ownerIds })
-      : { data: [] as { id: string; name: string | null }[] };
-  const profileRows = (profileRowsRaw ?? []) as { id: string; name: string | null }[];
-  const ownerNameById = new Map(
-    (profileRows ?? []).map((profile) => [profile.id, (profile.name || "Player").trim() || "Player"]),
-  );
-
-  const featuredItems = (itemRows ?? [])
-    .map((row) =>
-      mapRowToItem({
-        ...row,
-        owner_name:
-          (typeof row.user_id === "string" && ownerNameById.get(row.user_id)) ||
-          row.owner_name,
-      }),
-    )
-    .slice(0, 3);
-
   return (
     <div className="page-shell">
       <VegasHeader />
 
-      <section
-        className="relative overflow-hidden border-b border-white/10"
-        style={{
-          backgroundImage:
-            "url(https://images.unsplash.com/photo-1491252706929-a72754910041?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080)",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      >
+      <section className="relative overflow-hidden border-b border-white/10">
+        <div className="absolute inset-0 -z-20">
+          <Image
+            src="https://images.unsplash.com/photo-1491252706929-a72754910041?auto=format&fit=crop&w=1600&q=60&fm=webp"
+            alt="Vegas background"
+            fill
+            sizes="100vw"
+            quality={55}
+            style={{ objectFit: "cover" }}
+            priority
+            placeholder="blur"
+            blurDataURL="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='9' viewBox='0 0 16 9'><rect width='16' height='9' fill='%230f1724'/></svg>"
+          />
+        </div>
         <div className="absolute inset-0 bg-black/65" />
         <div className="relative mx-auto grid min-h-120 w-full max-w-6xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
           <div>
@@ -158,30 +132,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="px-4 py-16 sm:px-6">
-        <div className="mx-auto max-w-6xl">
-          <div className="mb-8 flex items-end justify-between gap-4">
-            <h2 className="text-3xl font-bold text-amber-200 sm:text-4xl">Featured Items</h2>
-            <Link href="/profile/items/new" className="text-sm font-semibold text-amber-300 hover:text-amber-200">
-              Add your item
-            </Link>
-          </div>
-          {featuredItems.length === 0 ? (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/70 p-8 text-center">
-              <p className="text-zinc-300">No user-listed items yet.</p>
-              <p className="mt-2 text-sm text-zinc-400">
-                Be the first to add a real item to the marketplace.
-              </p>
-            </div>
-          ) : (
-            <div className="grid gap-6 md:grid-cols-3">
-              {featuredItems.map((item) => (
-                <ItemCard key={item.id} item={item} />
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
+      <FeaturedItemsSection />
 
       <section className="border-t border-white/10 px-4 py-12 sm:px-6">
         <div className="mx-auto max-w-3xl rounded-xl border border-zinc-800 bg-zinc-900/70 p-6 text-center">

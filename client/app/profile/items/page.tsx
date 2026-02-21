@@ -26,7 +26,7 @@ export default async function MyItemsPage() {
 
   const { data: itemRows } = await supabase
     .from("items")
-    .select("*")
+    .select("item_id, name, desc, price, url, category, condition, user_id, owner_name, available_for_gamble")
     .eq("user_id", user.id)
     .order("item_id", { ascending: false });
   const myItems = (itemRows ?? []).map((row) =>
