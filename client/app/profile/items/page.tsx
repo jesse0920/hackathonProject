@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { VegasHeader } from "@/components/vegas/header";
 import { ItemCard } from "@/components/vegas/item-card";
-import { mockItems } from "@/lib/vegas-data";
+import { mapRowToItem } from "@/lib/vegas-data";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function MyItemsPage() {
@@ -18,13 +18,19 @@ export default async function MyItemsPage() {
   const fallbackUsername = user.email?.split("@")[0] || "player";
   const { data: profile } = await supabase
     .from("profiles")
-    .select("username")
+    .select("name")
     .eq("id", user.id)
     .maybeSingle();
 
-  const displayName = profile?.username || fallbackUsername;
-  const myItems = mockItems.filter(
-    (item) => item.ownerName === "You" || item.ownerName === displayName,
+  const displayName = profile?.name || fallbackUsername;
+  const { data: itemRows } = await supabase.from("items").select("*");
+  const myItems = (itemRows ?? [])
+    .map((row) => mapRowToItem(row))
+    .filter(
+      (item) =>
+        item.ownerId === user.id ||
+        item.ownerName === displayName ||
+        item.ownerName === "You",
   );
 
   return (

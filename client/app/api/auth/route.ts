@@ -7,6 +7,7 @@ type AuthRequestBody = {
   mode?: AuthMode;
   email?: string;
   password?: string;
+  name?: string;
   username?: string;
 };
 
@@ -48,9 +49,11 @@ export async function POST(req: Request) {
     );
   }
 
-  if (body.mode === "register" && body.username && body.username.trim().length < 3) {
+  const suppliedName = body.name ?? body.username;
+
+  if (body.mode === "register" && suppliedName && suppliedName.trim().length < 3) {
     return NextResponse.json(
-      { error: "Username must be at least 3 characters." },
+      { error: "Name must be at least 3 characters." },
       { status: 400 },
     );
   }
@@ -70,8 +73,9 @@ export async function POST(req: Request) {
       await supabase.from("profiles").upsert(
         {
           id: user.id,
-          username: deriveUsername(body.email),
-          updated_at: new Date().toISOString(),
+          name: deriveUsername(body.email),
+          wins: 0,
+          totalBets: 0,
         },
         { onConflict: "id", ignoreDuplicates: true },
       );
@@ -80,7 +84,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, message: "Logged in.", redirectTo: "/profile" });
   }
 
-  const username = body.username?.trim() || deriveUsername(body.email);
+  const name = suppliedName?.trim() || deriveUsername(body.email);
   const { data, error } = await supabase.auth.signUp({
     email: body.email,
     password: body.password,
@@ -95,8 +99,9 @@ export async function POST(req: Request) {
     await supabase.from("profiles").upsert(
       {
         id: data.user.id,
-        username,
-        updated_at: new Date().toISOString(),
+        name,
+        wins: 0,
+        totalBets: 0,
       },
       { onConflict: "id" },
     );

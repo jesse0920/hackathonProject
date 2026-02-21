@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { VegasHeader } from "@/components/vegas/header";
 import { ItemCard } from "@/components/vegas/item-card";
-import { mockItems } from "@/lib/vegas-data";
+import { mapRowToItem } from "@/lib/vegas-data";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function ProfilePage() {
@@ -19,7 +19,7 @@ export default async function ProfilePage() {
 
   let { data: profile } = await supabase
     .from("profiles")
-    .select("id, avatar_url, updated_at")
+    .select("id, avatar_url, name, wins, totalBets")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -27,15 +27,16 @@ export default async function ProfilePage() {
     await supabase.from("profiles").upsert(
       {
         id: user.id,
-        username: fallbackUsername,
-        updated_at: new Date().toISOString(),
+        name: fallbackUsername,
+        wins: 0,
+        totalBets: 0,
       },
       { onConflict: "id" },
     );
 
     const profileResult = await supabase
       .from("profiles")
-      .select("id, avatar_url, updated_at")
+      .select("id, avatar_url, name, wins, totalBets")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -49,9 +50,14 @@ export default async function ProfilePage() {
     redirect("/login");
   }
 
-  const displayName = profile?.id || fallbackUsername;
-  const previewItem =
-    mockItems.find((item) => item.ownerName === "You") ?? mockItems[0];
+  const displayName = profile?.name || fallbackUsername;
+  const wins = profile?.wins ?? 0;
+  const totalBets = profile?.totalBets ?? 0;
+
+  const { data: itemRows } = await supabase.from("items").select("*");
+  const previewItem = (itemRows ?? [])
+    .map((row) => mapRowToItem(row))
+    .find((item) => item.ownerId === user.id || item.ownerName === displayName);
 
   return (
     <div className="min-h-screen bg-black">
@@ -72,18 +78,18 @@ export default async function ProfilePage() {
             </div>
           </div>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-2">
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
             <div className="rounded-lg border border-gray-700 bg-black/50 p-4">
-              <p className="mb-2 text-sm text-gray-400">Username</p>
+              <p className="mb-2 text-sm text-gray-400">Name</p>
               <p className="text-xl font-semibold text-white">{displayName}</p>
             </div>
             <div className="rounded-lg border border-gray-700 bg-black/50 p-4">
-              <p className="mb-2 text-sm text-gray-400">Profile Last Updated</p>
-              <p className="text-xl font-semibold text-white">
-                {profile?.updated_at
-                  ? new Date(profile.updated_at).toLocaleString()
-                  : "Not available"}
-              </p>
+              <p className="mb-2 text-sm text-gray-400">Wins</p>
+              <p className="text-xl font-semibold text-white">{wins}</p>
+            </div>
+            <div className="rounded-lg border border-gray-700 bg-black/50 p-4">
+              <p className="mb-2 text-sm text-gray-400">Total Bets</p>
+              <p className="text-xl font-semibold text-white">{totalBets}</p>
             </div>
           </div>
 
@@ -92,7 +98,13 @@ export default async function ProfilePage() {
               My Item Card
             </h2>
             <div className="max-w-xs">
-              <ItemCard item={previewItem} compact />
+              {previewItem ? (
+                <ItemCard item={previewItem} compact />
+              ) : (
+                <p className="rounded-lg border border-gray-700 bg-black/50 p-4 text-sm text-gray-400">
+                  No items listed yet.
+                </p>
+              )}
             </div>
           </div>
 

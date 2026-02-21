@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { VegasHeader } from "@/components/vegas/header";
 import { ItemCard } from "@/components/vegas/item-card";
-import { mockItems } from "@/lib/vegas-data";
+import { mapRowToItem } from "@/lib/vegas-data";
+import { createClient } from "@/lib/supabase/server";
 
-export default function Home() {
-  const featuredItems = mockItems.slice(0, 3);
+export default async function Home() {
+  const supabase = await createClient();
+  const { data: itemRows } = await supabase.from("items").select("*");
+  const featuredItems = (itemRows ?? []).map((row) => mapRowToItem(row)).slice(0, 3);
 
   return (
     <div className="min-h-screen bg-black">

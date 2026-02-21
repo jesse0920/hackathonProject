@@ -1,16 +1,36 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { VegasHeader } from "@/components/vegas/header";
 import { ItemCard } from "@/components/vegas/item-card";
-import { categories, mockItems } from "@/lib/vegas-data";
+import { categories, mapRowToItem, type Item } from "@/lib/vegas-data";
+import { createClient } from "@/lib/supabase/client";
 
 export default function MarketplacePage() {
+  const [items, setItems] = useState<Item[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<(typeof categories)[number]>("All");
 
+  useEffect(() => {
+    const supabase = createClient();
+
+    const loadItems = async () => {
+      const { data, error } = await supabase.from("items").select("*");
+      if (error) {
+        setItems([]);
+        setIsLoading(false);
+        return;
+      }
+      setItems((data ?? []).map((row) => mapRowToItem(row)));
+      setIsLoading(false);
+    };
+
+    void loadItems();
+  }, []);
+
   const filteredItems = useMemo(() => {
-    return mockItems.filter((item) => {
+    return items.filter((item) => {
       const matchesSearch =
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.description.toLowerCase().includes(searchQuery.toLowerCase());
@@ -19,7 +39,7 @@ export default function MarketplacePage() {
 
       return matchesSearch && matchesCategory;
     });
-  }, [searchQuery, selectedCategory]);
+  }, [items, searchQuery, selectedCategory]);
 
   return (
     <div className="min-h-screen bg-black">
@@ -62,7 +82,9 @@ export default function MarketplacePage() {
           </div>
         </div>
 
-        {filteredItems.length === 0 ? (
+        {isLoading ? (
+          <p className="py-16 text-center text-lg text-gray-400">Loading items...</p>
+        ) : filteredItems.length === 0 ? (
           <p className="py-16 text-center text-lg text-gray-400">
             No items found matching your criteria.
           </p>

@@ -43,7 +43,7 @@ export function RouletteWheel({ items, isSpinning, spinAngle }: RouletteWheelPro
                   }}
                 >
                   <span className="whitespace-nowrap text-xs font-semibold text-white">
-                    ${item.estimatedValue}
+                    ${item.price}
                   </span>
                 </div>
               </div>

@@ -1,18 +1,48 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { VegasHeader } from "@/components/vegas/header";
 import { ItemCard } from "@/components/vegas/item-card";
 import { RouletteWheel } from "@/components/vegas/roulette-wheel";
-import { mockItems, type Item } from "@/lib/vegas-data";
+import { mapRowToItem, type Item } from "@/lib/vegas-data";
+import { createClient } from "@/lib/supabase/client";
+
+function getTier(value: number) {
+  if (value <= 5) return "$5 and below";
+  if (value <= 25) return "$5 - $25";
+  if (value <= 50) return "$25 - $50";
+  if (value <= 75) return "$50 - $75";
+  if (value <= 100) return "$75 - $100";
+  if (value <= 250) return "$100 - $250";
+  return "$250 - $500";
+}
 
 export default function PoolPage() {
+  const [items, setItems] = useState<Item[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedItems, setSelectedItems] = useState<Item[]>([]);
   const [isSpinning, setIsSpinning] = useState(false);
   const [result, setResult] = useState<Item | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [spinAngle, setSpinAngle] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    const loadItems = async () => {
+      const { data, error } = await supabase.from("items").select("*");
+      if (error) {
+        setItems([]);
+        setIsLoading(false);
+        return;
+      }
+      setItems((data ?? []).map((row) => mapRowToItem(row)));
+      setIsLoading(false);
+    };
+
+    void loadItems();
+  }, []);
 
   const handleSelectItem = (item: Item) => {
     setSelectedItems((previous) => {
@@ -26,20 +56,9 @@ export default function PoolPage() {
         return previous;
       }
 
-      // Enforce same price tier selection for fairness
-      const getTier = (value: number) => {
-        if (value <= 5) return "$5 and below";
-        if (value <= 25) return "$5 - $25";
-        if (value <= 50) return "$25 - $50";
-        if (value <= 75) return "$50 - $75";
-        if (value <= 100) return "$75 - $100";
-        if (value <= 250) return "$100 - $250";
-        return "$250 - $500";
-      };
-
       if (previous.length > 0) {
-        const firstTier = getTier(previous[0].estimatedValue);
-        const itemTier = getTier(item.estimatedValue);
+        const firstTier = getTier(previous[0].price);
+        const itemTier = getTier(item.price);
         if (firstTier !== itemTier) {
           setNotice(`Selections are locked to the tier: ${firstTier}`);
           window.setTimeout(() => setNotice(null), 3000);
@@ -82,6 +101,16 @@ export default function PoolPage() {
     setIsSpinning(false);
     setSpinAngle(0);
   };
+
+  const tiers: { key: string; min: number; max: number | null }[] = [
+    { key: "$5 and below", min: 0, max: 5 },
+    { key: "$5 - $25", min: 5.01, max: 25 },
+    { key: "$25 - $50", min: 25.01, max: 50 },
+    { key: "$50 - $75", min: 50.01, max: 75 },
+    { key: "$75 - $100", min: 75.01, max: 100 },
+    { key: "$100 - $250", min: 100.01, max: 250 },
+    { key: "$250 - $500", min: 250.01, max: 500 },
+  ];
 
   return (
     <div className="min-h-screen bg-black">
@@ -149,82 +178,49 @@ export default function PoolPage() {
               <span className="ml-2 text-yellow-400">({selectedItems.length}/6)</span>
             ) : null}
           </h2>
+
           {notice ? (
             <div className="mb-4 rounded bg-red-900/60 px-4 py-2 text-sm text-red-200">{notice}</div>
           ) : null}
 
-          {/* Price tiers grouping */}
-          {(() => {
-            const tiers: { key: string; min: number; max: number | null }[] = [
-              { key: "$5 and below", min: 0, max: 5 },
-              { key: "$5 - $25", min: 5.01, max: 25 },
-              { key: "$25 - $50", min: 25.01, max: 50 },
-              { key: "$50 - $75", min: 50.01, max: 75 },
-              { key: "$75 - $100", min: 75.01, max: 100 },
-              { key: "$100 - $250", min: 100.01, max: 250 },
-              { key: "$250 - $500", min: 250.01, max: 500 },
-            ];
+          {isLoading ? (
+            <p className="py-16 text-center text-lg text-gray-400">Loading items...</p>
+          ) : (
+            <div className="space-y-8">
+              {tiers.map((tier) => {
+                const itemsInTier = items.filter((item) => item.price >= tier.min && item.price <= (tier.max ?? Number.POSITIVE_INFINITY));
+                if (itemsInTier.length === 0) return null;
 
-            return (
-              <div className="space-y-8">
-                {tiers.map((tier) => {
-                  const itemsInTier = mockItems.filter((item) => {
-                    const v = item.estimatedValue;
-                    if (tier.max === null) return v >= tier.min;
-                    return v >= tier.min && v <= tier.max;
-                  });
+                return (
+                  <div key={tier.key} className="rounded-md bg-gray-900/40 p-4">
+                    <h3 className="mb-3 text-lg font-semibold text-white">{tier.key}</h3>
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                      {itemsInTier.map((item) => {
+                        const selectionTier = selectedItems[0] ? getTier(selectedItems[0].price) : null;
+                        const itemTier = getTier(item.price);
 
-                  if (itemsInTier.length === 0) return null;
+                        const disabled =
+                          !!selectionTier &&
+                          selectionTier !== itemTier &&
+                          !selectedItems.some((selectedItem) => selectedItem.id === item.id);
 
-                  return (
-                    <div key={tier.key} className="rounded-md bg-gray-900/40 p-4">
-                      <h3 className="mb-3 text-lg font-semibold text-white">{tier.key}</h3>
-                      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                        {itemsInTier.map((item) => {
-                          const selectionTier = selectedItems[0]
-                            ? ((): string => {
-                                const v = selectedItems[0].estimatedValue;
-                                if (v <= 5) return "$5 and below";
-                                if (v <= 25) return "$5 - $25";
-                                if (v <= 50) return "$25 - $50";
-                                if (v <= 75) return "$50 - $75";
-                                if (v <= 100) return "$75 - $100";
-                                if (v <= 250) return "$100 - $250";
-                                return "$250 - $500";
-                              })()
-                            : null;
-
-                          const itemTier = (() => {
-                            const v = item.estimatedValue;
-                            if (v <= 5) return "$5 and below";
-                            if (v <= 25) return "$5 - $25";
-                            if (v <= 50) return "$25 - $50";
-                            if (v <= 75) return "$50 - $75";
-                            if (v <= 100) return "$75 - $100";
-                            if (v <= 250) return "$100 - $250";
-                            return "$250 - $500";
-                          })();
-
-                          const disabled = !!selectionTier && selectionTier !== itemTier && !selectedItems.some((s) => s.id === item.id);
-
-                          return (
-                            <ItemCard
-                              key={item.id}
-                              item={item}
-                              selected={selectedItems.some((selectedItem) => selectedItem.id === item.id)}
-                              showSelectButton
-                              onSelect={handleSelectItem}
-                              disabled={disabled}
-                            />
-                          );
-                        })}
-                      </div>
+                        return (
+                          <ItemCard
+                            key={item.id}
+                            item={item}
+                            selected={selectedItems.some((selectedItem) => selectedItem.id === item.id)}
+                            showSelectButton
+                            onSelect={handleSelectItem}
+                            disabled={disabled}
+                          />
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </div>
-            );
-          })()}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
       </main>
     </div>
