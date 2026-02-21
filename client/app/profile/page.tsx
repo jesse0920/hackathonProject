@@ -200,6 +200,12 @@ export default async function ProfilePage() {
                 My Items
               </Link>
               <Link
+                href="/profile/trades"
+                className="rounded-lg border border-blue-500/60 bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600"
+              >
+                Trade Requests
+              </Link>
+              <Link
                 href="/profile/won"
                 className="rounded-lg border border-amber-400/70 bg-amber-300 px-4 py-2 text-sm font-semibold text-black hover:bg-amber-200"
               >
@@ -234,6 +240,12 @@ export default async function ProfilePage() {
               <p className="mt-1 text-sm text-zinc-400">Recent items you won in gamble spins.</p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <Link
+                href="/profile/trades"
+                className="rounded-lg border border-blue-500/60 bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600"
+              >
+                Trade Requests
+              </Link>
               <Link
                 href="/profile/won"
                 className="rounded-lg border border-zinc-600 bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:border-zinc-400"

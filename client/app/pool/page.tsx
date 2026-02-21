@@ -2,34 +2,37 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { VegasHeader } from "@/components/vegas/header";
 import { ItemCard } from "@/components/vegas/item-card";
 import { RouletteWheel } from "@/components/vegas/roulette-wheel";
 import { mapRowToItem, type Item } from "@/lib/vegas-data";
 import { createClient } from "@/lib/supabase/client";
+import { VALUE_TIERS, getValueTier, isSameValueTier } from "@/lib/value-tier";
 
-function getTier(value: number) {
-  if (value <= 5) return "5 coins and below";
-  if (value <= 25) return "5-25 coins";
-  if (value <= 50) return "25-50 coins";
-  if (value <= 75) return "50-75 coins";
-  if (value <= 100) return "75-100 coins";
-  if (value <= 250) return "100-250 coins";
-  return "250-500 coins";
-}
+type TradeCreateResponse = {
+  ok?: boolean;
+  error?: string;
+  message?: string;
+  trade?: {
+    trade_id?: number;
+    status?: string;
+    meetup_location?: string;
+  };
+};
 
 export default function PoolPage() {
   const router = useRouter();
   const [items, setItems] = useState<Item[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedItems, setSelectedItems] = useState<Item[]>([]);
+  const [selectedMyItem, setSelectedMyItem] = useState<Item | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
   const [result, setResult] = useState<Item | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [spinAngle, setSpinAngle] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [createdTradeId, setCreatedTradeId] = useState<number | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -58,7 +61,7 @@ export default function PoolPage() {
         const profileRows = (profileRowsRaw ?? []) as { id: string; name: string | null }[];
 
         ownerNameById = new Map(
-          (profileRows ?? []).map((profile) => [
+          profileRows.map((profile) => [
             profile.id,
             (profile.name || "Player").trim() || "Player",
           ]),
@@ -87,123 +90,108 @@ export default function PoolPage() {
     void loadCurrentUser();
   }, []);
 
-  const handleWonItemsSave = async (winner: Item, poolItems: Item[]) => {
-    const supabase = createClient();
+  const myItems = useMemo(
+    () => items.filter((item) => !!currentUserId && item.ownerId === currentUserId),
+    [items, currentUserId],
+  );
+  const otherUsersItems = useMemo(
+    () => items.filter((item) => !currentUserId || item.ownerId !== currentUserId),
+    [items, currentUserId],
+  );
 
-    let activeUserId = currentUserId;
-    if (!activeUserId) {
-      const { data } = await supabase.auth.getUser();
-      activeUserId = data.user?.id ?? null;
-      setCurrentUserId(activeUserId);
-    }
+  const rouletteCandidates = useMemo(() => {
+    if (!selectedMyItem || !currentUserId) return [];
 
-    if (!activeUserId || winner.ownerId !== activeUserId) {
+    return items.filter(
+      (item) =>
+        item.ownerId !== currentUserId &&
+        isSameValueTier(Number(item.price), Number(selectedMyItem.price)),
+    );
+  }, [items, selectedMyItem, currentUserId]);
+
+  const selectedTier = selectedMyItem ? getValueTier(Number(selectedMyItem.price)) : null;
+
+  const handleSelectMyItem = (item: Item) => {
+    if (!currentUserId || item.ownerId !== currentUserId) {
       return;
     }
 
-    // Increment wins on each successful personal spin win.
-    const { data: profileRow } = await supabase
-      .from("profiles")
-      .select("wins")
-      .eq("id", activeUserId)
-      .maybeSingle();
-    let winsError: { message?: string } | null = null;
+    setCreatedTradeId(null);
+    setResult(null);
+    setShowResult(false);
+    setNotice(null);
 
-    if (profileRow) {
-      const nextWins = (profileRow.wins ?? 0) + 1;
-      const result = await supabase
-        .from("profiles")
-        .update({ wins: nextWins })
-        .eq("id", activeUserId);
-      winsError = result.error;
-    } else {
-      const { data: authData } = await supabase.auth.getUser();
-      const fallbackName = authData.user?.email?.split("@")[0] || "player";
-      const result = await supabase.from("profiles").upsert(
-        {
-          id: activeUserId,
-          name: fallbackName,
-          wins: 1,
-          totalBets: 0,
-        },
-        { onConflict: "id" },
-      );
-      winsError = result.error;
-    }
-
-    if (winsError) {
-      setNotice("You won, but updating your wins count failed.");
-      window.setTimeout(() => setNotice(null), 3500);
-    }
-
-    const wonItems = Array.from(
-      new Map(
-        poolItems
-          .filter((item) => item.ownerId && item.ownerId !== activeUserId)
-          .map((item) => [String(item.id), item]),
-      ).values(),
-    );
-
-    if (wonItems.length === 0) {
-      if (!winsError) {
-        setNotice("Win recorded.");
-        window.setTimeout(() => setNotice(null), 3500);
+    setSelectedMyItem((previous) => {
+      if (previous && String(previous.id) === String(item.id)) {
+        return null;
       }
-      return;
-    }
 
-    const results = await Promise.all(
-      wonItems.map(async (item) => {
-        const response = await fetch("/api/profile/received", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            itemId: item.id,
-            senderId: item.ownerId || null,
-            note: "Won in gamble spin",
-          }),
-        });
-
-        return response.ok;
-      }),
-    );
-
-    if (results.every(Boolean)) {
-      setNotice(`Saved ${wonItems.length} won item${wonItems.length > 1 ? "s" : ""} to your profile.`);
-      window.setTimeout(() => setNotice(null), 3500);
-      return;
-    }
-
-    setNotice("Some won items could not be saved. Try spinning again.");
-    window.setTimeout(() => setNotice(null), 3500);
+      return item;
+    });
   };
 
-  const handleSelectItem = (item: Item) => {
-    setSelectedItems((previous) => {
-      const isSelected = previous.some((selectedItem) => selectedItem.id === item.id);
-
-      if (isSelected) {
-        return previous.filter((selectedItem) => selectedItem.id !== item.id);
-      }
-
-      if (previous.length >= 6) {
-        return previous;
-      }
-
-      if (previous.length > 0) {
-        const firstTier = getTier(previous[0].price);
-        const itemTier = getTier(item.price);
-        if (firstTier !== itemTier) {
-          setNotice(`Selections are locked to the tier: ${firstTier}`);
-          window.setTimeout(() => setNotice(null), 3000);
-          return previous;
-        }
-      }
-
-      return [...previous, item];
+  const createTradeRequest = async (myItem: Item, landedItem: Item) => {
+    const response = await fetch("/api/trades", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        requesterItemId: myItem.id,
+        recipientItemId: landedItem.id,
+      }),
     });
+
+    const payload = (await response.json().catch(() => ({}))) as TradeCreateResponse;
+
+    if (!response.ok || !payload.ok) {
+      setNotice(payload.error || "Could not create trade request. Try spinning again.");
+      window.setTimeout(() => setNotice(null), 4000);
+      return;
+    }
+
+    const tradeId = Number(payload.trade?.trade_id);
+    setCreatedTradeId(Number.isInteger(tradeId) && tradeId > 0 ? tradeId : null);
+    setNotice(payload.message || "Trade request created.");
+    window.setTimeout(() => setNotice(null), 4000);
+  };
+
+  const handleSpin = () => {
+    if (!selectedMyItem || rouletteCandidates.length < 1) {
+      return;
+    }
+
+    const candidatesSnapshot = [...rouletteCandidates];
+
+    setIsSpinning(true);
+    setShowResult(false);
+    setResult(null);
+    setCreatedTradeId(null);
+
+    const winnerIndex = Math.floor(Math.random() * candidatesSnapshot.length);
+    const winner = candidatesSnapshot[winnerIndex];
+    const segmentAngle = 360 / candidatesSnapshot.length;
+    const targetAngle = 360 - (winnerIndex * segmentAngle + segmentAngle / 2);
+    const extraTurns = 360 * 5;
+
+    setSpinAngle((previous) => previous + extraTurns + targetAngle);
+
+    setTimeout(() => {
+      setResult(winner);
+      setIsSpinning(false);
+      setShowResult(true);
+      void createTradeRequest(selectedMyItem, winner);
+    }, 4000);
+  };
+
+  const handleReset = () => {
+    setSelectedMyItem(null);
+    setResult(null);
+    setShowResult(false);
+    setIsSpinning(false);
+    setSpinAngle(0);
+    setCreatedTradeId(null);
+    setNotice(null);
   };
 
   const handleRemoveItem = async (item: Item) => {
@@ -237,14 +225,9 @@ export default function PoolPage() {
     }
 
     setItems((previous) => previous.filter((existingItem) => String(existingItem.id) !== String(item.id)));
-    setSelectedItems((previous) =>
-      previous.filter((existingItem) => String(existingItem.id) !== String(item.id)),
+    setSelectedMyItem((previous) =>
+      previous && String(previous.id) === String(item.id) ? null : previous,
     );
-
-    if (result && String(result.id) === String(item.id)) {
-      setResult(null);
-      setShowResult(false);
-    }
 
     setNotice("Item removed from gamble pool.");
     window.setTimeout(() => setNotice(null), 3000);
@@ -258,51 +241,6 @@ export default function PoolPage() {
     router.push(`/profile/items/${item.id}/edit`);
   };
 
-  const handleSpin = () => {
-    if (selectedItems.length < 1) {
-      return;
-    }
-
-    const poolSnapshot = [...selectedItems];
-
-    setIsSpinning(true);
-    setShowResult(false);
-    setResult(null);
-
-    const winnerIndex = Math.floor(Math.random() * poolSnapshot.length);
-    const winner = poolSnapshot[winnerIndex];
-    const segmentAngle = 360 / poolSnapshot.length;
-    const targetAngle = 360 - (winnerIndex * segmentAngle + segmentAngle / 2);
-    const extraTurns = 360 * 5;
-
-    setSpinAngle((previous) => previous + extraTurns + targetAngle);
-
-    setTimeout(() => {
-      setResult(winner);
-      setIsSpinning(false);
-      setShowResult(true);
-      void handleWonItemsSave(winner, poolSnapshot);
-    }, 4000);
-  };
-
-  const handleReset = () => {
-    setSelectedItems([]);
-    setResult(null);
-    setShowResult(false);
-    setIsSpinning(false);
-    setSpinAngle(0);
-  };
-
-  const tiers: { key: string; min: number; max: number | null }[] = [
-    { key: "5 coins and below", min: 0, max: 5 },
-    { key: "5-25 coins", min: 5.01, max: 25 },
-    { key: "25-50 coins", min: 25.01, max: 50 },
-    { key: "50-75 coins", min: 50.01, max: 75 },
-    { key: "75-100 coins", min: 75.01, max: 100 },
-    { key: "100-250 coins", min: 100.01, max: 250 },
-    { key: "250-500 coins", min: 250.01, max: 500 },
-  ];
-
   return (
     <div className="page-shell">
       <VegasHeader />
@@ -311,28 +249,31 @@ export default function PoolPage() {
         <div className="mb-8 text-center">
           <h1 className="mb-2 text-4xl font-bold text-amber-200">Gamble Zone</h1>
           <p className="text-zinc-400">
-            Select 1-6 items in the same value tier, then spin to pick the winner.
+            Pick one of your items, spin in its value bracket, and launch a trade request.
           </p>
         </div>
 
-        {selectedItems.length > 0 ? (
+        {selectedMyItem ? (
           <section className="mb-8 rounded-xl border border-zinc-800 bg-zinc-900/70 p-6 sm:p-8">
-            <RouletteWheel items={selectedItems} isSpinning={isSpinning} spinAngle={spinAngle} />
+            <p className="mb-4 text-center text-zinc-300">
+              Selected stake: <span className="font-semibold text-amber-300">{selectedMyItem.name}</span> ({selectedTier})
+            </p>
+
+            <RouletteWheel items={rouletteCandidates} isSpinning={isSpinning} spinAngle={spinAngle} />
 
             <div className="mt-8 text-center">
               <p className="mb-4 text-zinc-400">
-                {selectedItems.length} {selectedItems.length === 1 ? "item" : "items"} selected
-                {selectedItems.length >= 6 ? " (maximum reached)" : ""}
+                {rouletteCandidates.length} matching item{rouletteCandidates.length === 1 ? "" : "s"} in bracket
               </p>
 
               <div className="flex flex-wrap justify-center gap-3">
                 <button
                   type="button"
                   onClick={handleSpin}
-                  disabled={selectedItems.length < 1 || isSpinning}
+                  disabled={rouletteCandidates.length < 1 || isSpinning}
                   className="rounded-lg bg-amber-300 px-8 py-3 font-semibold text-black hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isSpinning ? "Spinning..." : "Spin The Wheel"}
+                  {isSpinning ? "Spinning..." : "Spin For Trade Match"}
                 </button>
 
                 {!isSpinning ? (
@@ -350,23 +291,29 @@ export default function PoolPage() {
             {showResult && result ? (
               <div className="mt-8 rounded-xl border border-amber-400/60 bg-zinc-900 p-6">
                 <div className="text-center">
-                  <h2 className="mb-2 text-3xl font-bold text-amber-200">Winner!</h2>
-                  <p className="mb-4 text-xl text-amber-300">{result.ownerName} wins all items!</p>
-                  {currentUserId && result.ownerId === currentUserId ? (
-                    <div className="mb-4">
-                      <p className="text-sm text-green-300">
-                        You won this spin. Won items are being saved to your profile.
+                  <h2 className="mb-2 text-3xl font-bold text-amber-200">Trade Match Found</h2>
+                  <p className="mb-2 text-zinc-300">Your item matched with {result.ownerName}'s item.</p>
+                  <p className="mb-4 text-sm text-zinc-400">
+                    Trade stays pending until both users accept. Meetup location: Central PD.
+                  </p>
+
+                  <div className="mx-auto grid max-w-3xl gap-4 sm:grid-cols-2">
+                    <ItemCard item={selectedMyItem} compact />
+                    <ItemCard item={result} compact />
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    <Link
+                      href="/profile/trades"
+                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500"
+                    >
+                      Open Trade Requests
+                    </Link>
+                    {createdTradeId ? (
+                      <p className="rounded-lg border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-zinc-300">
+                        Trade #{createdTradeId} created
                       </p>
-                      <Link
-                        href="/profile/won"
-                        className="mt-3 inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500"
-                      >
-                        View Won Items
-                      </Link>
-                    </div>
-                  ) : null}
-                  <div className="mx-auto max-w-sm">
-                    <ItemCard item={result} />
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -375,12 +322,7 @@ export default function PoolPage() {
         ) : null}
 
         <section>
-          <h2 className="mb-4 text-2xl font-bold text-rose-200">
-            Select Items To Gamble
-            {selectedItems.length > 0 ? (
-              <span className="ml-2 text-amber-300">({selectedItems.length}/6)</span>
-            ) : null}
-          </h2>
+          <h2 className="mb-4 text-2xl font-bold text-rose-200">Step 1: Select One Of Your Items</h2>
 
           {notice ? (
             <div className="mb-4 rounded-lg border border-red-500/50 bg-red-950/50 px-4 py-2 text-sm text-red-200">
@@ -390,42 +332,95 @@ export default function PoolPage() {
 
           {isLoading ? (
             <p className="py-16 text-center text-lg text-zinc-400">Loading items...</p>
+          ) : myItems.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-zinc-700 bg-slate-950 p-4 text-sm text-zinc-400">
+              You have no items to gamble. Add one from your profile first.
+            </p>
           ) : (
             <div className="space-y-8">
-              {tiers.map((tier) => {
-                const itemsInTier = items.filter((item) => item.price >= tier.min && item.price <= (tier.max ?? Number.POSITIVE_INFINITY));
+              {VALUE_TIERS.map((tier) => {
+                const itemsInTier = myItems.filter(
+                  (item) => item.price >= tier.min && item.price <= (tier.max ?? Number.POSITIVE_INFINITY),
+                );
                 if (itemsInTier.length === 0) return null;
 
                 return (
                   <div key={tier.key} className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
                     <h3 className="mb-3 text-lg font-semibold text-white">{tier.key}</h3>
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                      {itemsInTier.map((item) => {
-                        const selectionTier = selectedItems[0] ? getTier(selectedItems[0].price) : null;
-                        const itemTier = getTier(item.price);
+                      {itemsInTier.map((item) => (
+                        <ItemCard
+                          key={item.id}
+                          item={item}
+                          selected={!!selectedMyItem && String(selectedMyItem.id) === String(item.id)}
+                          showSelectButton
+                          onSelect={handleSelectMyItem}
+                          showEditButton={!!currentUserId && item.ownerId === currentUserId}
+                          onEdit={handleEditItem}
+                          editDisabled={isSpinning}
+                          showRemoveButton={!!currentUserId && item.ownerId === currentUserId}
+                          onRemove={handleRemoveItem}
+                          removeDisabled={isSpinning}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
 
-                        const disabled =
-                          !!selectionTier &&
-                          selectionTier !== itemTier &&
-                          !selectedItems.some((selectedItem) => selectedItem.id === item.id);
+        {selectedMyItem ? (
+          <section className="mt-8 rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
+            <h2 className="mb-3 text-xl font-semibold text-white">Step 2: Bracket Roulette Pool</h2>
+            <p className="mb-4 text-sm text-zinc-400">
+              This wheel contains items from other users in <span className="font-semibold text-amber-300">{selectedTier}</span>.
+            </p>
+            {rouletteCandidates.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-zinc-700 bg-slate-950 p-4 text-sm text-zinc-400">
+                No other users currently have items in this value bracket.
+              </p>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {rouletteCandidates.map((item) => (
+                  <ItemCard key={item.id} item={item} compact />
+                ))}
+              </div>
+            )}
+          </section>
+        ) : null}
 
-                        return (
-                          <ItemCard
-                            key={item.id}
-                            item={item}
-                            selected={selectedItems.some((selectedItem) => selectedItem.id === item.id)}
-                            showSelectButton
-                            onSelect={handleSelectItem}
-                            showEditButton={!!currentUserId && item.ownerId === currentUserId}
-                            onEdit={handleEditItem}
-                            editDisabled={isSpinning}
-                            showRemoveButton={!!currentUserId && item.ownerId === currentUserId}
-                            onRemove={handleRemoveItem}
-                            removeDisabled={isSpinning}
-                            disabled={disabled}
-                          />
-                        );
-                      })}
+        <section className="mt-8 rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
+          <h2 className="mb-3 text-xl font-semibold text-white">Available Items By Tier</h2>
+          <p className="mb-4 text-sm text-zinc-400">
+            Preview all other users&apos; gamble items grouped by value bracket.
+          </p>
+
+          {otherUsersItems.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-zinc-700 bg-slate-950 p-4 text-sm text-zinc-400">
+              No available opponent items are listed right now.
+            </p>
+          ) : (
+            <div className="space-y-6">
+              {VALUE_TIERS.map((tier) => {
+                const tierItems = otherUsersItems.filter(
+                  (item) =>
+                    item.price >= tier.min &&
+                    item.price <= (tier.max ?? Number.POSITIVE_INFINITY),
+                );
+
+                if (tierItems.length === 0) return null;
+
+                return (
+                  <div key={`available-${tier.key}`} className="rounded-lg border border-zinc-800 bg-slate-950/70 p-4">
+                    <h3 className="mb-3 text-base font-semibold text-amber-200">
+                      {tier.key} ({tierItems.length})
+                    </h3>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {tierItems.map((item) => (
+                        <ItemCard key={`available-${item.id}`} item={item} compact />
+                      ))}
                     </div>
                   </div>
                 );

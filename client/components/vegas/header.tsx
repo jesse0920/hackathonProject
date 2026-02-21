@@ -8,6 +8,7 @@ import { useState } from "react";
 const navItems = [
   { href: "/", label: "Home" },
   { href: "/pool", label: "Gamble" },
+  { href: "/profile/trades", label: "Trades" },
   { href: "/profile", label: "Profile" },
 ];
 
@@ -60,6 +61,12 @@ export function VegasHeader() {
               P
             </summary>
             <div className="absolute right-0 mt-2 w-44 rounded-lg border border-zinc-700 bg-zinc-950 p-2 shadow-xl">
+              <Link
+                href="/profile/trades"
+                className="block rounded-md px-3 py-2 text-sm text-zinc-200 hover:bg-white/5"
+              >
+                Trades
+              </Link>
               <Link
                 href="/profile"
                 className="block rounded-md px-3 py-2 text-sm text-zinc-200 hover:bg-white/5"
