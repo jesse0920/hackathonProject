@@ -19,7 +19,7 @@ export default async function ProfilePage() {
 
   let { data: profile } = await supabase
     .from("profiles")
-    .select("id, username, avatar_url, updated_at")
+    .select("id, avatar_url, updated_at")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -35,7 +35,7 @@ export default async function ProfilePage() {
 
     const profileResult = await supabase
       .from("profiles")
-      .select("id, username, avatar_url, updated_at")
+      .select("id, avatar_url, updated_at")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -49,8 +49,9 @@ export default async function ProfilePage() {
     redirect("/login");
   }
 
-  const displayName = profile?.username || fallbackUsername;
-  const previewItem = mockItems.find((item) => item.ownerName === "You") ?? mockItems[0];
+  const displayName = profile?.id || fallbackUsername;
+  const previewItem =
+    mockItems.find((item) => item.ownerName === "You") ?? mockItems[0];
 
   return (
     <div className="min-h-screen bg-black">
@@ -63,7 +64,9 @@ export default async function ProfilePage() {
               {displayName.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1">
-              <h1 className="mb-2 text-3xl font-bold text-white">{displayName}</h1>
+              <h1 className="mb-2 text-3xl font-bold text-white">
+                {displayName}
+              </h1>
               <p className="text-gray-300">{user.email}</p>
               <p className="mt-1 text-sm text-gray-500">User ID: {user.id}</p>
             </div>
@@ -85,7 +88,9 @@ export default async function ProfilePage() {
           </div>
 
           <div className="mt-8">
-            <h2 className="mb-4 text-xl font-semibold text-white">My Item Card</h2>
+            <h2 className="mb-4 text-xl font-semibold text-white">
+              My Item Card
+            </h2>
             <div className="max-w-xs">
               <ItemCard item={previewItem} compact />
             </div>

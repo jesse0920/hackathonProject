@@ -49,7 +49,6 @@ export default async function AddItemPage() {
 
         <form
           action={submitItem}
-          encType="multipart/form-data"
           className="space-y-5 rounded-lg border border-red-900 bg-gradient-to-r from-gray-900 to-gray-800 p-6"
         >
           <div>
