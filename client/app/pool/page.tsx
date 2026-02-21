@@ -39,7 +39,37 @@ export default function PoolPage() {
         setIsLoading(false);
         return;
       }
-      setItems((data ?? []).map((row) => mapRowToItem(row)));
+
+      const ownerIds = Array.from(
+        new Set(
+          (data ?? [])
+            .map((row) => (typeof row.user_id === "string" ? row.user_id : null))
+            .filter((value): value is string => !!value),
+        ),
+      );
+
+      let ownerNameById = new Map<string, string>();
+      if (ownerIds.length > 0) {
+        const { data: profileRows } = await supabase
+          .from("profiles")
+          .select("id, name")
+          .in("id", ownerIds);
+
+        ownerNameById = new Map(
+          (profileRows ?? []).map((profile) => [profile.id, profile.name || "Unknown"]),
+        );
+      }
+
+      setItems(
+        (data ?? []).map((row) =>
+          mapRowToItem({
+            ...row,
+            owner_name:
+              (typeof row.user_id === "string" && ownerNameById.get(row.user_id)) ||
+              row.owner_name,
+          }),
+        ),
+      );
       setIsLoading(false);
     };
 
