@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+const spinServiceUrl = (process.env.SPIN_SERVICE_URL || "http://127.0.0.1:3001").replace(/\/+$/, "");
+
 const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
@@ -26,6 +28,14 @@ const nextConfig: NextConfig = {
         pathname: "/**",
       },
     ],
+  },
+  async rewrites() {
+    return [
+      {
+        source: "/api/pool/spin",
+        destination: `${spinServiceUrl}/pool/spin`,
+      },
+    ];
   },
 };
 

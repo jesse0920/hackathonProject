@@ -21,6 +21,16 @@ type TradeCreateResponse = {
   };
 };
 
+type SpinResponse = {
+  ok?: boolean;
+  error?: string;
+  winnerItemId?: string | number;
+  winnerIndex?: number;
+  targetAngle?: number;
+  extraTurns?: number;
+  durationMs?: number;
+};
+
 const POOL_ITEMS_CACHE_KEY = "potzi.pool.items.v3";
 const POOL_ITEMS_CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -267,11 +277,12 @@ export default function PoolPage() {
     window.setTimeout(() => setNotice(null), 4000);
   };
 
-  const handleSpin = () => {
+  const handleSpin = async () => {
     if (!selectedMyItem || rouletteCandidates.length < 1) {
       return;
     }
 
+    const selectedItemSnapshot = selectedMyItem;
     const candidatesSnapshot = [...rouletteCandidates];
 
     setIsSpinning(true);
@@ -279,18 +290,55 @@ export default function PoolPage() {
     setResult(null);
     setCreatedTradeId(null);
 
-    const winnerIndex = Math.floor(Math.random() * candidatesSnapshot.length);
-    const winner = candidatesSnapshot[winnerIndex];
-    const segmentAngle = 360 / candidatesSnapshot.length;
-    const edgeBuffer = Math.min(segmentAngle * 0.2, 3);
-    const inSegmentMin = edgeBuffer;
-    const inSegmentMax = Math.max(inSegmentMin, segmentAngle - edgeBuffer);
-    const randomOffsetInSegment =
-      inSegmentMin + Math.random() * (inSegmentMax - inSegmentMin);
-    const winnerAngle = winnerIndex * segmentAngle + randomOffsetInSegment;
-    const targetAngle = normalizeAngle(360 - winnerAngle);
-    const extraTurns = 360 * (6 + Math.floor(Math.random() * 5));
-    const durationMs = 4200 + Math.floor(Math.random() * 1800);
+    let winner: Item | undefined;
+    let targetAngle = 0;
+    let extraTurns = 0;
+    let durationMs = 0;
+
+    try {
+      const spinResponse = await fetch("/api/pool/spin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          requesterItemId: selectedItemSnapshot.id,
+          candidateItemIds: candidatesSnapshot.map((item) => item.id),
+        }),
+      });
+      const spinPayload = (await spinResponse.json().catch(() => ({}))) as SpinResponse;
+
+      if (!spinResponse.ok || !spinPayload.ok) {
+        setIsSpinning(false);
+        setNotice(spinPayload.error || "Could not run spin. Refresh and try again.");
+        window.setTimeout(() => setNotice(null), 4000);
+        return;
+      }
+
+      const winnerId = String(spinPayload.winnerItemId ?? "");
+      winner = candidatesSnapshot.find((item) => String(item.id) === winnerId);
+      targetAngle = Number(spinPayload.targetAngle);
+      extraTurns = Number(spinPayload.extraTurns);
+      durationMs = Number(spinPayload.durationMs);
+    } catch {
+      setIsSpinning(false);
+      setNotice("Could not run spin. Check your connection and try again.");
+      window.setTimeout(() => setNotice(null), 4000);
+      return;
+    }
+
+    if (
+      !winner ||
+      !Number.isFinite(targetAngle) ||
+      !Number.isFinite(extraTurns) ||
+      !Number.isFinite(durationMs)
+    ) {
+      setIsSpinning(false);
+      setNotice("Spin result became stale. Refresh and try again.");
+      window.setTimeout(() => setNotice(null), 4000);
+      return;
+    }
+
     setSpinDurationMs(durationMs);
 
     setSpinAngle((previous) => {
@@ -303,7 +351,7 @@ export default function PoolPage() {
       setResult(winner);
       setIsSpinning(false);
       setShowResult(true);
-      void createTradeRequest(selectedMyItem, winner);
+      void createTradeRequest(selectedItemSnapshot, winner);
     }, durationMs);
   };
 
