@@ -15,6 +15,13 @@ function deriveUsername(email: string) {
   return email.split("@")[0]?.trim().slice(0, 32) || "player";
 }
 
+function normalizeDisplayName(input: string | undefined, email: string) {
+  const base = (input?.trim() || deriveUsername(email)).slice(0, 64);
+  const withoutAt = base.replace(/@/g, " ");
+  const safe = withoutAt.replace(/[^a-zA-Z0-9 _.-]/g, "").trim();
+  return safe || deriveUsername(email);
+}
+
 export async function POST(req: Request) {
   const supabase = await createClient();
   const body = (await req.json().catch(() => null)) as AuthRequestBody | null;
@@ -70,7 +77,7 @@ export async function POST(req: Request) {
 
     const user = data.user;
     if (user) {
-      await supabase.from("profiles").upsert(
+      const { error: profileError } = await supabase.from("profiles").upsert(
         {
           id: user.id,
           name: deriveUsername(body.email),
@@ -79,24 +86,40 @@ export async function POST(req: Request) {
         },
         { onConflict: "id", ignoreDuplicates: true },
       );
+      if (profileError) {
+        console.error("[auth] profile upsert failed on login", profileError);
+      }
     }
 
     return NextResponse.json({ ok: true, message: "Logged in.", redirectTo: "/profile" });
   }
 
-  const name = suppliedName?.trim() || deriveUsername(body.email);
+  const name = normalizeDisplayName(suppliedName, body.email);
   const { data, error } = await supabase.auth.signUp({
     email: body.email,
     password: body.password,
+    options: {
+      data: {
+        name,
+        username: name,
+      },
+    },
   });
 
   if (error) {
+    console.error("[auth] signUp failed", {
+      message: error.message,
+      name: error.name,
+      status: (error as { status?: number }).status,
+      code: (error as { code?: string }).code,
+      normalizedName: name,
+    });
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
   // If email confirmation is disabled, a session exists immediately and we can safely write profile now.
   if (data.user && data.session) {
-    await supabase.from("profiles").upsert(
+    const { error: profileError } = await supabase.from("profiles").upsert(
       {
         id: data.user.id,
         name,
@@ -105,6 +128,9 @@ export async function POST(req: Request) {
       },
       { onConflict: "id" },
     );
+    if (profileError) {
+      console.error("[auth] profile upsert failed on register", profileError);
+    }
 
     return NextResponse.json({
       ok: true,
