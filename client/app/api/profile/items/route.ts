@@ -85,7 +85,7 @@ export async function POST(req: Request) {
   }
 
   if (!imageUrl) {
-    return errorResponse("Image URL is required.");
+    return errorResponse("Provide an image URL for API item creation.");
   }
 
   if (!Number.isFinite(price) || price <= 0) {

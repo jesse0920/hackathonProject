@@ -189,10 +189,6 @@ begin
     raise exception using message = 'Item price must be greater than 0.', errcode = '22023';
   end if;
 
-  if nullif(trim(item_url), '') is null then
-    raise exception using message = 'Item image URL is required.', errcode = '22023';
-  end if;
-
   normalized_condition := case
     when item_condition in ('New', 'Like New', 'Good', 'Fair') then item_condition
     else 'Good'
@@ -203,7 +199,7 @@ begin
     trim(item_name),
     coalesce(trim(item_desc), ''),
     item_price,
-    trim(item_url),
+    coalesce(nullif(trim(item_url), ''), '/file.svg'),
     coalesce(nullif(trim(item_category), ''), 'Misc'),
     normalized_condition,
     current_user_id
@@ -355,9 +351,21 @@ select coalesce(
 );
 $$;
 
+create or replace function public.get_profile_names(profile_ids uuid[])
+returns table (id uuid, name text)
+language sql
+security definer
+set search_path = public
+as $$
+  select p.id, coalesce(nullif(trim(p.name), ''), 'Player') as name
+  from public.profiles p
+  where p.id = any(profile_ids);
+$$;
+
 grant execute on function public.set_my_profile_name(text) to authenticated;
 grant execute on function public.post_my_item(text, text, numeric, text, text, text) to authenticated;
 grant execute on function public.add_received_item(text, uuid, text) to authenticated;
 grant execute on function public.get_my_profile_backend() to authenticated;
+grant execute on function public.get_profile_names(uuid[]) to authenticated;
 
 commit;

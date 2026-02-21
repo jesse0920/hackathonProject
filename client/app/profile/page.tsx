@@ -111,12 +111,20 @@ export default async function ProfilePage() {
               <h2 className="text-lg font-semibold text-white sm:text-xl">My Item Cards</h2>
               <p className="mt-1 text-sm text-zinc-400">All items currently listed by you.</p>
             </div>
-            <Link
-              href="/profile/items/new"
-              className="rounded-lg border border-red-500/70 bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600"
-            >
-              Add New Item
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="/profile/items"
+                className="rounded-lg border border-zinc-600 bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:border-zinc-400"
+              >
+                My Items
+              </Link>
+              <Link
+                href="/profile/items/new"
+                className="rounded-lg border border-red-500/70 bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600"
+              >
+                Add New Item
+              </Link>
+            </div>
           </div>
 
           {myItems.length === 0 ? (

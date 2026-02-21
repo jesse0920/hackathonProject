@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { VegasHeader } from "@/components/vegas/header";
 
 export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { VegasHeader } from "@/components/vegas/header";
 import { ItemCard } from "@/components/vegas/item-card";
@@ -19,6 +20,7 @@ function getTier(value: number) {
 }
 
 export default function PoolPage() {
+  const router = useRouter();
   const [items, setItems] = useState<Item[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedItems, setSelectedItems] = useState<Item[]>([]);
@@ -50,10 +52,10 @@ export default function PoolPage() {
 
       let ownerNameById = new Map<string, string>();
       if (ownerIds.length > 0) {
-        const { data: profileRows } = await supabase
-          .from("profiles")
-          .select("id, name")
-          .in("id", ownerIds);
+        const { data: profileRowsRaw } = await supabase.rpc("get_profile_names", {
+          profile_ids: ownerIds,
+        });
+        const profileRows = (profileRowsRaw ?? []) as { id: string; name: string | null }[];
 
         ownerNameById = new Map(
           (profileRows ?? []).map((profile) => [
@@ -202,6 +204,58 @@ export default function PoolPage() {
 
       return [...previous, item];
     });
+  };
+
+  const handleRemoveItem = async (item: Item) => {
+    if (!currentUserId || item.ownerId !== currentUserId) {
+      return;
+    }
+
+    const confirmed = window.confirm(`Remove "${item.name}" from the gamble pool?`);
+    if (!confirmed) {
+      return;
+    }
+
+    const numericItemId = Number(item.id);
+    if (!Number.isFinite(numericItemId)) {
+      setNotice("Unable to remove item: invalid item id.");
+      window.setTimeout(() => setNotice(null), 3000);
+      return;
+    }
+
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("items")
+      .delete()
+      .eq("item_id", numericItemId)
+      .eq("user_id", currentUserId);
+
+    if (error) {
+      setNotice(`Failed to remove item: ${error.message}`);
+      window.setTimeout(() => setNotice(null), 3500);
+      return;
+    }
+
+    setItems((previous) => previous.filter((existingItem) => String(existingItem.id) !== String(item.id)));
+    setSelectedItems((previous) =>
+      previous.filter((existingItem) => String(existingItem.id) !== String(item.id)),
+    );
+
+    if (result && String(result.id) === String(item.id)) {
+      setResult(null);
+      setShowResult(false);
+    }
+
+    setNotice("Item removed from gamble pool.");
+    window.setTimeout(() => setNotice(null), 3000);
+  };
+
+  const handleEditItem = (item: Item) => {
+    if (!currentUserId || item.ownerId !== currentUserId) {
+      return;
+    }
+
+    router.push(`/profile/items/${item.id}/edit`);
   };
 
   const handleSpin = () => {
@@ -362,6 +416,12 @@ export default function PoolPage() {
                             selected={selectedItems.some((selectedItem) => selectedItem.id === item.id)}
                             showSelectButton
                             onSelect={handleSelectItem}
+                            showEditButton={!!currentUserId && item.ownerId === currentUserId}
+                            onEdit={handleEditItem}
+                            editDisabled={isSpinning}
+                            showRemoveButton={!!currentUserId && item.ownerId === currentUserId}
+                            onRemove={handleRemoveItem}
+                            removeDisabled={isSpinning}
                             disabled={disabled}
                           />
                         );

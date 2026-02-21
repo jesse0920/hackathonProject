@@ -15,10 +15,11 @@ export default async function Home() {
     ),
   );
 
-  const { data: profileRows } =
+  const { data: profileRowsRaw } =
     ownerIds.length > 0
-      ? await supabase.from("profiles").select("id, name").in("id", ownerIds)
+      ? await supabase.rpc("get_profile_names", { profile_ids: ownerIds })
       : { data: [] as { id: string; name: string | null }[] };
+  const profileRows = (profileRowsRaw ?? []) as { id: string; name: string | null }[];
   const ownerNameById = new Map(
     (profileRows ?? []).map((profile) => [profile.id, (profile.name || "Player").trim() || "Player"]),
   );
@@ -48,7 +49,7 @@ export default async function Home() {
         }}
       >
         <div className="absolute inset-0 bg-black/65" />
-        <div className="relative mx-auto grid min-h-[30rem] w-full max-w-6xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
+        <div className="relative mx-auto grid min-h-120 w-full max-w-6xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
               Vegas Community Swap
@@ -165,11 +166,20 @@ export default async function Home() {
               Add your item
             </Link>
           </div>
-          <div className="grid gap-6 md:grid-cols-3">
-            {featuredItems.map((item) => (
-              <ItemCard key={item.id} item={item} />
-            ))}
-          </div>
+          {featuredItems.length === 0 ? (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/70 p-8 text-center">
+              <p className="text-zinc-300">No user-listed items yet.</p>
+              <p className="mt-2 text-sm text-zinc-400">
+                Be the first to add a real item to the marketplace.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-3">
+              {featuredItems.map((item) => (
+                <ItemCard key={item.id} item={item} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

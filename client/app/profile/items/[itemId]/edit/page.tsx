@@ -14,17 +14,39 @@ const categoryOptions = [
 const conditionOptions = ["New", "Like New", "Good", "Fair"] as const;
 const maxImageUploadBytes = 5 * 1024 * 1024;
 
-export default async function AddItemPage() {
+type EditItemPageProps = {
+  params: Promise<{ itemId: string }>;
+};
+
+export default async function EditItemPage({ params }: EditItemPageProps) {
+  const { itemId } = await params;
+  const numericItemId = Number(itemId);
+
+  if (!Number.isFinite(numericItemId)) {
+    redirect("/profile/items");
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?error=Please sign in to add an item");
+    redirect("/login?error=Please sign in to edit your item");
   }
 
-  async function submitItem(formData: FormData) {
+  const { data: item } = await supabase
+    .from("items")
+    .select("*")
+    .eq("item_id", numericItemId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!item) {
+    redirect("/profile/items");
+  }
+
+  async function updateItem(formData: FormData) {
     "use server";
 
     const sb = await createClient();
@@ -33,7 +55,7 @@ export default async function AddItemPage() {
     } = await sb.auth.getUser();
 
     if (!actionUser) {
-      redirect("/login?error=Please sign in to add an item");
+      redirect("/login?error=Please sign in to edit your item");
     }
 
     const name = String(formData.get("name") ?? "").trim();
@@ -47,40 +69,45 @@ export default async function AddItemPage() {
         ? imageUploadInput
         : null;
     const hasUploadedImage = Boolean(imageUpload && imageUpload.size > 0);
+    const existingImageUrl = typeof item.url === "string" ? item.url : "";
     const estimatedValue = Number(String(formData.get("estimatedValue") ?? ""));
 
     if (
       !name ||
       !Number.isFinite(estimatedValue) ||
       estimatedValue <= 0 ||
-      (!imageUrl && !hasUploadedImage)
+      (!imageUrl && !hasUploadedImage && !existingImageUrl)
     ) {
-      redirect("/profile/items/new");
+      redirect(`/profile/items/${numericItemId}/edit`);
     }
 
-    let resolvedImageUrl = imageUrl;
+    let resolvedImageUrl = imageUrl || existingImageUrl;
 
-    if (!resolvedImageUrl && imageUpload) {
+    if (!imageUrl && imageUpload) {
       if (!imageUpload.type.startsWith("image/") || imageUpload.size > maxImageUploadBytes) {
-        redirect("/profile/items/new");
+        redirect(`/profile/items/${numericItemId}/edit`);
       }
 
       const buffer = Buffer.from(await imageUpload.arrayBuffer());
       resolvedImageUrl = `data:${imageUpload.type};base64,${buffer.toString("base64")}`;
     }
 
-    const { error } = await sb.rpc("post_my_item", {
-      item_name: name,
-      item_desc: description,
-      item_price: estimatedValue,
-      item_url: resolvedImageUrl,
-      item_category: category || null,
-      item_condition: condition || "Good",
-    });
+    const { error } = await sb
+      .from("items")
+      .update({
+        name,
+        desc: description,
+        price: estimatedValue,
+        url: resolvedImageUrl,
+        category: category || "Misc",
+        condition: condition || "Good",
+      })
+      .eq("item_id", numericItemId)
+      .eq("user_id", actionUser.id);
 
     if (error) {
-      console.error("[profile-items-new] failed to create item", error);
-      redirect("/profile/items/new");
+      console.error("[profile-items-edit] failed to update item", error);
+      redirect(`/profile/items/${numericItemId}/edit`);
     }
 
     redirect("/profile/items");
@@ -93,8 +120,8 @@ export default async function AddItemPage() {
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
         <div className="mb-6 flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold text-amber-200">Add Item</h1>
-            <p className="mt-2 text-zinc-400">Submit an item to list in your profile.</p>
+            <h1 className="text-4xl font-bold text-amber-200">Edit Item</h1>
+            <p className="mt-2 text-zinc-400">Update your existing item listing.</p>
           </div>
           <Link
             href="/profile/items"
@@ -104,7 +131,7 @@ export default async function AddItemPage() {
           </Link>
         </div>
 
-        <form action={submitItem} className="space-y-5 rounded-xl border border-zinc-800 bg-zinc-900/70 p-6">
+        <form action={updateItem} className="space-y-5 rounded-xl border border-zinc-800 bg-zinc-900/70 p-6">
           <div>
             <label htmlFor="name" className="mb-2 block text-sm font-semibold text-zinc-200">
               Item Name
@@ -114,6 +141,7 @@ export default async function AddItemPage() {
               name="name"
               type="text"
               required
+              defaultValue={item.name ?? ""}
               className="w-full rounded-lg border border-zinc-700 bg-slate-950 px-4 py-2 text-white outline-none focus:border-amber-300"
             />
           </div>
@@ -141,6 +169,7 @@ export default async function AddItemPage() {
               name="description"
               rows={4}
               required
+              defaultValue={typeof item.desc === "string" ? item.desc : ""}
               className="w-full rounded-lg border border-zinc-700 bg-slate-950 px-4 py-2 text-white outline-none focus:border-amber-300"
             />
           </div>
@@ -154,6 +183,7 @@ export default async function AddItemPage() {
                 id="category"
                 name="category"
                 required
+                defaultValue={typeof item.category === "string" ? item.category : categoryOptions[0]}
                 className="w-full rounded-lg border border-zinc-700 bg-slate-950 px-4 py-2 text-white outline-none focus:border-amber-300"
               >
                 {categoryOptions.map((option) => (
@@ -172,6 +202,7 @@ export default async function AddItemPage() {
                 id="condition"
                 name="condition"
                 required
+                defaultValue={typeof item.condition === "string" ? item.condition : conditionOptions[2]}
                 className="w-full rounded-lg border border-zinc-700 bg-slate-950 px-4 py-2 text-white outline-none focus:border-amber-300"
               >
                 {conditionOptions.map((option) => (
@@ -194,6 +225,7 @@ export default async function AddItemPage() {
                 type="number"
                 min="1"
                 required
+                defaultValue={typeof item.price === "number" ? item.price : 1}
                 className="w-full rounded-lg border border-zinc-700 bg-slate-950 px-4 py-2 text-white outline-none focus:border-amber-300"
               />
             </div>
@@ -206,13 +238,14 @@ export default async function AddItemPage() {
                 id="imageUrl"
                 name="imageUrl"
                 type="url"
+                defaultValue={typeof item.url === "string" ? item.url : ""}
                 className="w-full rounded-lg border border-zinc-700 bg-slate-950 px-4 py-2 text-white outline-none focus:border-amber-300"
               />
             </div>
           </div>
 
           <button type="submit" className="w-full rounded-lg bg-red-700 px-6 py-3 font-semibold text-white hover:bg-red-600">
-            Submit Item
+            Save Changes
           </button>
         </form>
       </main>

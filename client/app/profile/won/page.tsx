@@ -65,14 +65,15 @@ export default async function WonItemsPage() {
     ),
   );
 
-  const [{ data: senderRows }, { data: itemRows }] = await Promise.all([
+  const [{ data: senderRowsRaw }, { data: itemRows }] = await Promise.all([
     senderIds.length > 0
-      ? supabase.from("profiles").select("id, name").in("id", senderIds)
+      ? supabase.rpc("get_profile_names", { profile_ids: senderIds })
       : Promise.resolve({ data: [] as { id: string; name: string | null }[] }),
     numericItemIds.length > 0
       ? supabase.from("items").select("*").in("item_id", numericItemIds)
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
   ]);
+  const senderRows = (senderRowsRaw ?? []) as { id: string; name: string | null }[];
 
   const senderNameById = new Map(
     (senderRows ?? []).map((row) => [row.id, (row.name || "Player").trim() || "Player"]),

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { VegasHeader } from "@/components/vegas/header";
-import { ItemCard } from "@/components/vegas/item-card";
+import { MyItemsManager } from "@/components/profile/my-items-manager";
 import { mapRowToItem } from "@/lib/vegas-data";
 import { createClient } from "@/lib/supabase/server";
 
@@ -24,20 +24,17 @@ export default async function MyItemsPage() {
 
   const displayName = profile?.name || fallbackUsername;
 
-  const { data: itemRows } = await supabase.from("items").select("*");
-  const myItems = (itemRows ?? [])
-    .map((row) =>
-      mapRowToItem({
-        ...row,
-        owner_name: displayName,
-      }),
-    )
-    .filter(
-      (item) =>
-        item.ownerId === user.id ||
-        item.ownerName === displayName ||
-        item.ownerName === "You",
-    );
+  const { data: itemRows } = await supabase
+    .from("items")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("item_id", { ascending: false });
+  const myItems = (itemRows ?? []).map((row) =>
+    mapRowToItem({
+      ...row,
+      owner_name: displayName,
+    }),
+  );
 
   return (
     <div className="page-shell">
@@ -65,20 +62,7 @@ export default async function MyItemsPage() {
           </div>
         </div>
 
-        {myItems.length === 0 ? (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/70 p-8 text-center">
-            <p className="text-lg text-zinc-200">No items listed yet.</p>
-            <p className="mt-2 text-sm text-zinc-400">
-              Add your first item to start gambling and trading.
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {myItems.map((item) => (
-              <ItemCard key={item.id} item={item} />
-            ))}
-          </div>
-        )}
+        <MyItemsManager initialItems={myItems} currentUserId={user.id} />
       </main>
     </div>
   );
