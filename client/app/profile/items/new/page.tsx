@@ -63,13 +63,13 @@ export default async function AddItemPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-zinc-100">
+    <div className="page-shell">
       <VegasHeader />
 
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
         <div className="mb-6 flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold text-white">Add Item</h1>
+            <h1 className="text-4xl font-bold text-amber-200">Add Item</h1>
             <p className="mt-2 text-zinc-400">Submit an item to list in your profile.</p>
           </div>
           <Link
@@ -161,7 +161,7 @@ export default async function AddItemPage() {
           <div className="grid gap-5 md:grid-cols-2">
             <div>
               <label htmlFor="estimatedValue" className="mb-2 block text-sm font-semibold text-zinc-200">
-                Estimated Value ($)
+                Estimated Value (coins)
               </label>
               <input
                 id="estimatedValue"

@@ -43,13 +43,6 @@ export default async function ProfilePage() {
     profile = profileResult.data;
   }
 
-  async function signOut() {
-    "use server";
-    const sb = await createClient();
-    await sb.auth.signOut();
-    redirect("/login");
-  }
-
   const displayName = profile?.name || fallbackUsername;
   const wins = profile?.wins ?? 0;
   const totalBets = profile?.totalBets ?? 0;
@@ -59,12 +52,11 @@ export default async function ProfilePage() {
     .from("items")
     .select("*")
     .eq("user_id", user.id)
-    .order("item_id", { ascending: false })
-    .limit(1);
-  const previewItem = (itemRows ?? []).map((row) => mapRowToItem(row))[0];
+    .order("item_id", { ascending: false });
+  const myItems = (itemRows ?? []).map((row) => mapRowToItem(row));
 
   return (
-    <div className="min-h-screen bg-slate-950 text-zinc-100">
+    <div className="page-shell">
       <VegasHeader />
 
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 sm:gap-8 sm:px-6">
@@ -78,7 +70,7 @@ export default async function ProfilePage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300/80">
                   Player Profile
                 </p>
-                <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl">
+                <h1 className="mt-1 text-2xl font-bold text-rose-200 sm:text-3xl">
                   {displayName}
                 </h1>
                 <p className="mt-1 text-sm text-zinc-300 sm:text-base">{user.email}</p>
@@ -108,83 +100,31 @@ export default async function ProfilePage() {
           </div>
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/70 p-6">
-            <h2 className="text-lg font-semibold text-white sm:text-xl">Account Actions</h2>
-            <p className="mt-1 text-sm text-zinc-400">
-              Manage your items and keep your profile active in the pool.
-            </p>
-
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Link
-                href="/profile/items"
-                className="rounded-lg bg-amber-300 px-5 py-2.5 text-sm font-bold text-black hover:bg-amber-200 sm:text-base"
-              >
-                View My Items
-              </Link>
-              <Link
-                href="/profile/items/new"
-                className="rounded-lg border border-red-500/70 bg-red-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-600 sm:text-base"
-              >
-                Add New Item
-              </Link>
+        <section className="rounded-xl border border-zinc-800 bg-zinc-900/70 p-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-white sm:text-xl">My Item Cards</h2>
+              <p className="mt-1 text-sm text-zinc-400">All items currently listed by you.</p>
             </div>
-
-            <form action={signOut} className="mt-4">
-              <button
-                type="submit"
-                className="rounded-lg border border-zinc-600 bg-zinc-900 px-5 py-2.5 text-sm font-medium text-zinc-200 hover:border-zinc-400 hover:text-white sm:text-base"
-              >
-                Sign out
-              </button>
-            </form>
-          </div>
-
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/70 p-6">
-            <h2 className="text-lg font-semibold text-white sm:text-xl">My Item Card</h2>
-            <p className="mt-1 text-sm text-zinc-400">Quick preview.</p>
-            <div className="mt-4">
-              {previewItem ? (
-                <div className="max-w-xs">
-                  <ItemCard item={previewItem} compact />
-                </div>
-              ) : (
-                <p className="rounded-lg border border-dashed border-zinc-700 bg-slate-950 p-4 text-sm text-zinc-400">
-                  No items listed yet.
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              href="/profile/items"
-              className="rounded-lg bg-yellow-400 px-6 py-3 font-semibold text-black transition-colors hover:bg-yellow-300"
-            >
-              My Items
-            </Link>
-            <Link
-              href="/profile/won"
-              className="rounded-lg bg-emerald-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-emerald-500"
-            >
-              Won Items
-            </Link>
             <Link
               href="/profile/items/new"
-              className="rounded-lg bg-red-700 px-6 py-3 font-semibold text-white transition-colors hover:bg-red-600"
+              className="rounded-lg border border-red-500/70 bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600"
             >
-              Add Item
+              Add New Item
             </Link>
           </div>
 
-          <form action={signOut} className="mt-8">
-            <button
-              type="submit"
-              className="rounded-lg bg-red-700 px-6 py-3 font-semibold text-white transition-colors hover:bg-red-600"
-            >
-              Sign out
-            </button>
-          </form>
+          {myItems.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-zinc-700 bg-slate-950 p-4 text-sm text-zinc-400">
+              No items listed yet.
+            </p>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {myItems.map((item) => (
+                <ItemCard key={item.id} item={item} />
+              ))}
+            </div>
+          )}
         </section>
       </main>
     </div>

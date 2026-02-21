@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 const navItems = [
   { href: "/", label: "Home" },
@@ -12,6 +14,20 @@ const navItems = [
 
 export function VegasHeader() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  async function handleSignOut() {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    try {
+      await fetch("/api/auth", { method: "DELETE" });
+    } finally {
+      router.push("/login");
+      router.refresh();
+      setIsSigningOut(false);
+    }
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/95 backdrop-blur">
@@ -39,6 +55,28 @@ export function VegasHeader() {
               </Link>
             );
           })}
+
+          <details className="relative">
+            <summary className="flex list-none h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-sm font-bold text-amber-200 hover:border-zinc-500 [&::-webkit-details-marker]:hidden">
+              P
+            </summary>
+            <div className="absolute right-0 mt-2 w-44 rounded-lg border border-zinc-700 bg-zinc-950 p-2 shadow-xl">
+              <Link
+                href="/profile"
+                className="block rounded-md px-3 py-2 text-sm text-zinc-200 hover:bg-white/5"
+              >
+                Profile
+              </Link>
+              <button
+                type="button"
+                onClick={() => void handleSignOut()}
+                className="mt-1 block w-full rounded-md px-3 py-2 text-left text-sm text-red-300 hover:bg-red-500/10 disabled:opacity-70"
+                disabled={isSigningOut}
+              >
+                {isSigningOut ? "Signing out..." : "Sign out"}
+              </button>
+            </div>
+          </details>
         </nav>
       </div>
     </header>

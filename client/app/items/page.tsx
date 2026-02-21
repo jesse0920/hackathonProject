@@ -18,10 +18,10 @@ async function ItemsData() {
 
 export default function items() {
   return (
-    <div className="min-h-screen bg-slate-950 text-zinc-100">
+    <div className="page-shell">
       <VegasHeader />
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <h1 className="mb-4 text-3xl font-bold text-white">Items (Raw Data)</h1>
+        <h1 className="mb-4 text-3xl font-bold text-amber-200">Items (Raw Data)</h1>
         <Suspense fallback={<div className="text-zinc-400">Loading items...</div>}>
           <ItemsData />
         </Suspense>

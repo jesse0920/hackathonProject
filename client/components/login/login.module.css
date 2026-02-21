@@ -83,13 +83,12 @@
 }
 
 .btn {
+  width: 50%;
   padding: 10px 16px;
   border-radius: 10px;
   cursor: pointer;
-  background: #fcd34d;
-  color: #0b0b0b;
   font-weight: 700;
-  border: 0;
+  border: 1px solid transparent;
 }
 
 .btn:disabled {
@@ -97,12 +96,19 @@
   cursor: wait;
 }
 
-.alt {
-  background: transparent;
-  color: #fcd34d;
-  border: none;
-  cursor: pointer;
-  text-decoration: underline;
+.activeCta {
+  background: #fcd34d;
+  color: #0b0b0b;
+}
+
+.secondaryCta {
+  background: #18181b;
+  color: #e4e4e7;
+  border-color: #3f3f46;
+}
+
+.secondaryCta:hover {
+  border-color: #71717a;
 }
 
 .note {

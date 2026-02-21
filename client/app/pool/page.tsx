@@ -9,13 +9,13 @@ import { mapRowToItem, type Item } from "@/lib/vegas-data";
 import { createClient } from "@/lib/supabase/client";
 
 function getTier(value: number) {
-  if (value <= 5) return "$5 and below";
-  if (value <= 25) return "$5 - $25";
-  if (value <= 50) return "$25 - $50";
-  if (value <= 75) return "$50 - $75";
-  if (value <= 100) return "$75 - $100";
-  if (value <= 250) return "$100 - $250";
-  return "$250 - $500";
+  if (value <= 5) return "5 coins and below";
+  if (value <= 25) return "5-25 coins";
+  if (value <= 50) return "25-50 coins";
+  if (value <= 75) return "50-75 coins";
+  if (value <= 100) return "75-100 coins";
+  if (value <= 250) return "100-250 coins";
+  return "250-500 coins";
 }
 
 export default function PoolPage() {
@@ -237,22 +237,22 @@ export default function PoolPage() {
   };
 
   const tiers: { key: string; min: number; max: number | null }[] = [
-    { key: "$5 and below", min: 0, max: 5 },
-    { key: "$5 - $25", min: 5.01, max: 25 },
-    { key: "$25 - $50", min: 25.01, max: 50 },
-    { key: "$50 - $75", min: 50.01, max: 75 },
-    { key: "$75 - $100", min: 75.01, max: 100 },
-    { key: "$100 - $250", min: 100.01, max: 250 },
-    { key: "$250 - $500", min: 250.01, max: 500 },
+    { key: "5 coins and below", min: 0, max: 5 },
+    { key: "5-25 coins", min: 5.01, max: 25 },
+    { key: "25-50 coins", min: 25.01, max: 50 },
+    { key: "50-75 coins", min: 50.01, max: 75 },
+    { key: "75-100 coins", min: 75.01, max: 100 },
+    { key: "100-250 coins", min: 100.01, max: 250 },
+    { key: "250-500 coins", min: 250.01, max: 500 },
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-zinc-100">
+    <div className="page-shell">
       <VegasHeader />
 
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <div className="mb-8 text-center">
-          <h1 className="mb-2 text-4xl font-bold text-white">Gamble Zone</h1>
+          <h1 className="mb-2 text-4xl font-bold text-amber-200">Gamble Zone</h1>
           <p className="text-zinc-400">
             Select 1-6 items in the same value tier, then spin to pick the winner.
           </p>
@@ -293,7 +293,7 @@ export default function PoolPage() {
             {showResult && result ? (
               <div className="mt-8 rounded-xl border border-amber-400/60 bg-zinc-900 p-6">
                 <div className="text-center">
-                  <h2 className="mb-2 text-3xl font-bold text-white">Winner!</h2>
+                  <h2 className="mb-2 text-3xl font-bold text-amber-200">Winner!</h2>
                   <p className="mb-4 text-xl text-amber-300">{result.ownerName} wins all items!</p>
                   {currentUserId && result.ownerId === currentUserId ? (
                     <div className="mb-4">
@@ -318,7 +318,7 @@ export default function PoolPage() {
         ) : null}
 
         <section>
-          <h2 className="mb-4 text-2xl font-bold text-white">
+          <h2 className="mb-4 text-2xl font-bold text-rose-200">
             Select Items To Gamble
             {selectedItems.length > 0 ? (
               <span className="ml-2 text-amber-300">({selectedItems.length}/6)</span>

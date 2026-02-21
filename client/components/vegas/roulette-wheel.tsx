@@ -69,7 +69,7 @@ export function RouletteWheel({ items, isSpinning, spinAngle }: RouletteWheelPro
                       dominantBaseline="middle"
                       style={{ userSelect: "none" }}
                     >
-                      ${item.price}
+                      🪙{item.price}
                     </text>
                   </g>
                 );

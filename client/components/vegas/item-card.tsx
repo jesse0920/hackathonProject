@@ -28,7 +28,7 @@ export function ItemCard({
       <div className={`relative overflow-hidden ${compact ? "h-32" : "h-48"}`}>
         <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
         <div className="absolute right-2 top-2 rounded-md bg-black/70 px-2 py-1 text-xs font-semibold text-amber-300">
-          ${item.price}
+          🪙 {item.price} coins
         </div>
       </div>
 

@@ -38,7 +38,7 @@ export default async function WonItemsPage() {
 
   if (receivedError) {
     return (
-      <div className="min-h-screen bg-black">
+      <div className="page-shell">
         <VegasHeader />
         <main className="mx-auto max-w-6xl px-4 py-8">
           <div className="rounded-lg border border-red-900 bg-red-950/40 p-6 text-red-200">
@@ -108,13 +108,13 @@ export default async function WonItemsPage() {
   });
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="page-shell">
       <VegasHeader />
 
       <main className="mx-auto max-w-6xl px-4 py-8">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold text-white">Won Items</h1>
+            <h1 className="text-4xl font-bold text-amber-200">Won Items</h1>
             <p className="mt-2 text-gray-400">Items you have won from gamble spins.</p>
           </div>
           <div className="flex flex-wrap gap-3">

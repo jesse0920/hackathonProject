@@ -10,7 +10,7 @@ export default async function Home() {
   const featuredItems = (itemRows ?? []).map((row) => mapRowToItem(row)).slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-zinc-100">
+    <div className="page-shell">
       <VegasHeader />
 
       <section
@@ -28,17 +28,17 @@ export default async function Home() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
               Vegas Community Swap
             </p>
-            <h1 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl md:text-6xl">
+            <h1 className="mt-4 text-4xl font-black tracking-tight text-amber-100 sm:text-5xl md:text-6xl">
               Play The Pool.
               <br />
               Win Better Gear.
             </h1>
             <p className="mt-5 max-w-2xl text-base text-zinc-200 sm:text-lg">
-              Like a sportsbook board, but for real items. Enter fair value tiers,
-              spin, and claim the winning pool.
+              Like a sportsbook board, but with virtual-coin item tiers. Enter a
+              fair coin bracket, spin, and claim the winning pool.
             </p>
             <div className="mt-7 flex flex-wrap gap-2">
-              {["Live Pools 18", "Avg Pot $142", "Max Entries 6"].map((line) => (
+              {["Live Pools 18", "Avg Pot 🪙 142", "Max Entries 6"].map((line) => (
                 <span
                   key={line}
                   className="rounded-full border border-zinc-500 bg-black/50 px-3 py-1 text-xs font-semibold text-zinc-100"
@@ -88,15 +88,15 @@ export default async function Home() {
               </p>
               <div className="mt-2 space-y-1.5 text-sm">
                 <p className="flex items-center justify-between text-zinc-200">
-                  <span>$25 - $50 Tier</span>
+                  <span>🪙 25-50 coins Tier</span>
                   <span className="font-bold text-emerald-300">Hot</span>
                 </p>
                 <p className="flex items-center justify-between text-zinc-300">
-                  <span>$75 - $100 Tier</span>
+                  <span>🪙 75-100 coins Tier</span>
                   <span className="font-semibold text-zinc-200">Filling</span>
                 </p>
                 <p className="flex items-center justify-between text-zinc-300">
-                  <span>$100 - $250 Tier</span>
+                  <span>🪙 100-250 coins Tier</span>
                   <span className="font-semibold text-zinc-200">Open</span>
                 </p>
               </div>
@@ -107,7 +107,7 @@ export default async function Home() {
 
       <section className="border-b border-white/10 px-4 py-16 sm:px-6">
         <div className="mx-auto max-w-6xl">
-          <h2 className="mb-10 text-center text-3xl font-bold text-white sm:text-4xl">How It Works</h2>
+          <h2 className="mb-10 text-center text-3xl font-bold text-amber-200 sm:text-4xl">How It Works</h2>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {[{
               title: "List Your Items",
@@ -135,7 +135,7 @@ export default async function Home() {
       <section className="px-4 py-16 sm:px-6">
         <div className="mx-auto max-w-6xl">
           <div className="mb-8 flex items-end justify-between gap-4">
-            <h2 className="text-3xl font-bold text-white sm:text-4xl">Featured Items</h2>
+            <h2 className="text-3xl font-bold text-amber-200 sm:text-4xl">Featured Items</h2>
             <Link href="/marketplace" className="text-sm font-semibold text-amber-300 hover:text-amber-200">
               View all
             </Link>
